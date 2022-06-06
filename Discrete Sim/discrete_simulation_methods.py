@@ -1,4 +1,5 @@
 import numpy as np
+import numpy.ma as ma
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage import convolve
@@ -38,16 +39,17 @@ def fitness(nh, params, sim_params):
 
     h = nh/Nh
     eff_R0 = R0*(1-coverage(h, params, sim_params))**M
-    res = np.log(eff_R0, out=np.zeros_like(eff_R0), where=(eff_R0!=0))  # I'm not convinced this is right, the log(0) = 0 as 
-                                                                        # is might not be correct but R0 should not be smaller than 1 
-    # check = R0*(1-coverage(h))**M
-    # out = np.log(R0*((1-coverage(h))**M)) # This just fails as log(0) happens regularly
+    mask = (eff_R0 <= 0)
+    ma_eff_R0 = ma.masked_array(eff_R0, mask = mask)
+    res = ma.log(ma_eff_R0)
     return res
 
 
 def virus_growth(n, f, params, sim_params):
     dt = sim_params["dt"]
-    return np.random.poisson((1+f*dt)*n) #growth rate is (1+fdt)n as normal really
+    samples = np.random.poisson((1+f*dt)*n)
+    res = ma.array(samples, mask = f.mask, fill_value=0)
+    return  res.filled()
 
 def num_mutants(n, params, sim_params):
     mu = params["mu"]
