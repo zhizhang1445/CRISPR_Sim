@@ -35,6 +35,7 @@ def fitness(nh, params, sim_params):
     M = params["M"]
     Nh = params["Nh"]
 
+
     h = nh/Nh
     eff_R0 = R0*(1-coverage(h, params, sim_params))**M
     res = np.log(eff_R0, out=np.zeros_like(eff_R0), where=(eff_R0!=0))  # I'm not convinced this is right, the log(0) = 0 as 
@@ -42,6 +43,7 @@ def fitness(nh, params, sim_params):
     # check = R0*(1-coverage(h))**M
     # out = np.log(R0*((1-coverage(h))**M)) # This just fails as log(0) happens regularly
     return res
+
 
 def virus_growth(n, f, params, sim_params):
     dt = sim_params["dt"]
