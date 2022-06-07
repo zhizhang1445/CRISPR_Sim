@@ -44,6 +44,14 @@ def fitness(nh, params, sim_params):
     res = ma.log(ma_eff_R0)
     return res
 
+def fitness_controlled(n, nh, params, sim_params):
+    f = fitness(nh, params, sim_params)
+    f_avg = np.sum(f*n)/np.sum(n)
+    f_norm = f-f_avg
+
+    mask2 = ((1+f_norm*sim_params["dt"])<=0).filled()
+    f_norm.mask = mask2
+    return f_norm
 
 def virus_growth(n, f, params, sim_params):
     dt = sim_params["dt"]
