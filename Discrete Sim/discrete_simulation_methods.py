@@ -44,6 +44,26 @@ def fitness(nh, params, sim_params):
     res = ma.log(ma_eff_R0)
     return res
 
+def activation(d):
+    s = []
+    return s
+
+def fitness_spacers(nh, params, sim_params):
+    R0 = params["R0"]
+    M = params["M"]
+    Nh = params["Nh"]
+
+
+    h = nh/Nh
+    P0 = (1-coverage(h, params, sim_params))**M
+    P1 = 1-P0
+    P_infection = P0 + np.sum()
+    eff_R0 = P_infection*R0
+    mask = (eff_R0 <= 0)
+    ma_eff_R0 = ma.masked_array(eff_R0, mask = mask)
+    res = ma.log(ma_eff_R0)
+    return res
+
 def fitness_controlled(n, nh, params, sim_params):
     f = fitness(nh, params, sim_params)
     f_avg = np.sum(f*n)/np.sum(n)
