@@ -31,7 +31,7 @@ def write2json(name, params, sim_params):
 def coverage(h, params, sim_params):
     return h/params["M"] #I know this looks stupid but the coverage is not necessarily just a scale
 
-def fitness(nh, params, sim_params):
+def fitness(n, nh, params, sim_params):
     R0 = params["R0"]
     M = params["M"]
     Nh = params["Nh"]
@@ -46,7 +46,7 @@ def fitness(nh, params, sim_params):
 
 
 def fitness_controlled(n, nh, params, sim_params):
-    f = fitness(nh, params, sim_params)
+    f = fitness(n,nh, params, sim_params)
     f_avg = np.sum(f*n)/np.sum(n)
     f_norm = f-f_avg
 
