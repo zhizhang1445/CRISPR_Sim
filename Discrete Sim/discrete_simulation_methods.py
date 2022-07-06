@@ -3,6 +3,7 @@ import numpy.ma as ma
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage import convolve
+from scipy import signal
 import matplotlib.animation as animation
 import scipy
 import json
@@ -29,7 +30,17 @@ def write2json(name, params, sim_params):
         json.dump(sim_params, fp)
 
 def coverage(h, params, sim_params):
-    return h/params["M"] #I know this looks stupid but the coverage is not necessarily just a scale
+    kernel = params["r"]
+    conv_ker_size = sim_params["conv_size"]
+
+    x_linspace = np.arange(-conv_ker_size, conv_ker_size, 1)
+    coordmap = np.meshgrid(x_linspace, x_linspace)
+
+    radius = np.sqrt((coordmap[0])**2 + (coordmap[1])**2)
+    matrix_ker = np.exp(-radius/kernel)
+
+    res = signal.convolve(h, matrix_ker, mode= "same")
+    return res/params["M"] #I know this looks stupid but the coverage is not necessarily just a scale
 
 def fitness(n, nh, params, sim_params):
     R0 = params["R0"]
