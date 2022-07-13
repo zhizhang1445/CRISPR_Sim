@@ -10,7 +10,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 make: *** No rule to make target `all'.  Stop.
 
 
-# Make data base, printed on Wed Jul  6 06:07:22 2022
+# Make data base, printed on Tue Jul 12 04:23:18 2022
 
 # Variables
 
@@ -43,7 +43,7 @@ __CFBundleIdentifier = com.microsoft.VSCode
 # environment
 INFOPATH = /opt/homebrew/share/info:
 # environment
-VSCODE_IPC_HOOK_EXTHOST = /var/folders/9_/htwk2tpd6tv_fy1sp81nfcsm0000gn/T/vscode-ipc-a8707fb3-7d55-42d6-8d97-695e7ca2ca52.sock
+VSCODE_IPC_HOOK_EXTHOST = /var/folders/9_/htwk2tpd6tv_fy1sp81nfcsm0000gn/T/vscode-ipc-12985997-1344-4aa1-847f-010e7d7298dd.sock
 # environment
 VSCODE_CWD = /
 # environment
@@ -55,7 +55,7 @@ ELECTRON_RUN_AS_NODE = 1
 # default
 .FEATURES := target-specific order-only second-expansion else-if archives jobserver check-symlink
 # environment
-SSH_AUTH_SOCK = /private/tmp/com.apple.launchd.NijalArfEr/Listeners
+SSH_AUTH_SOCK = /private/tmp/com.apple.launchd.RV9wmqoonT/Listeners
 # automatic
 %F = $(notdir $%)
 # environment
@@ -157,7 +157,7 @@ MAKELEVEL := 0
 # environment
 CONDA_PREFIX = /Users/zhizhang144515/opt/anaconda3
 # environment
-VSCODE_PID = 1385
+VSCODE_PID = 2861
 # environment
 _CE_CONDA = 
 # environment
@@ -171,7 +171,7 @@ LANG = C
 
 # Directories
 
-# . (device 16777231, inode 28607230): 12 files, no impossibilities.
+# . (device 16777232, inode 28607230): 12 files, no impossibilities.
 
 # 12 files, no impossibilities in 1 directories.
 
@@ -245,6 +245,6 @@ GNUmakefile:
 # strcache size: total = 0 / max = 0 / min = 4096 / avg = 0
 # strcache free: total = 0 / max = 0 / min = 4096 / avg = 0
 
-# Finished Make data base on Wed Jul  6 06:07:22 2022
+# Finished Make data base on Tue Jul 12 04:23:18 2022
 
  

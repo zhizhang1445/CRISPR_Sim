@@ -48,10 +48,13 @@ def alpha(d, params):
 
     return d**h/(d**h + dc**h)
 
-def q(d, shape, params):
-    Np = params["Np"]
-    M = params["M"]
-    return np.random.binomial(d, 1/M, shape)
+def binomial_pdf(n, x, p):
+    multiplicity = scipy.special.binom(n, x)
+    bernouilli = (p**x)*((1-p)**(n-x))
+    return multiplicity*bernouilli
+
+def p_single_spacer(h, params, sim_params):
+    return h/params["M"]
 
 def fitness(n, nh, params, sim_params):
     R0 = params["R0"]
@@ -72,18 +75,15 @@ def fitness_spacers(n, nh, params, sim_params):
     Np = params["Np"]
 
     h = nh/Nh
-    P0 = (1-coverage(h, params, sim_params))**M
-    P1 = 1-P0
+    P0 = p_single_spacer(h, params, sim_params)
+    P_0_spacer = binomial_pdf(M, 0, P0)
 
-    P_tt = 0
-    for d in range(1,Np):
-        # print(d)
-        P_tt = P_tt + P1*(1-alpha(d, params))*q(d, nh.shape, params)
+    P_1_spacer = binomial_pdf(M, 1, P0)
+    P_tt = P_0_spacer
+    for d in range(1, Np):
+        P_tt += binomial_pdf(Np, d, 1/M)*P_1_spacer*(1-alpha(d, params))
 
-
-    P_inf = P0 + P_tt
-    P_clip = np.clip(P_inf, 0, 1)
-    eff_R0 = P_clip*R0
+    eff_R0 = P_tt*R0
     mask = (eff_R0 <= 0)
     ma_eff_R0 = ma.masked_array(eff_R0, mask = mask)
     res = ma.log(ma_eff_R0)
