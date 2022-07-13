@@ -1,0 +1,1 @@
+{"xdomain": 500, "dx": 1, "t0": 0, "tf": 1000, "dt": 1, "noise_mean": 0, "noise_std": 0.1, "initial_mean": [0, 0], "initial_var": 5, "n_step_prior": 5, "folder_name": "simulation#18", "conv_size": 20, "x_size": 1000}
