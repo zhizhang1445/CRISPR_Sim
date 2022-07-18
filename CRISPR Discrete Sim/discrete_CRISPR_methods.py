@@ -132,7 +132,10 @@ def num_mutation(params, sim_params):
     if out >= 1 :
         return out #This is what mu, is the average rate of mutation
     else:
-        return num_mutation(params, sim_params) #conditioned as to have at least one mutation
+        try:
+            return num_mutation(params, sim_params) #conditioned as to have at least one mutation
+        except RecursionError:
+            return 0
 
 def mutation_jump(m, params, sim_params):
     shape_param = params["gamma_shape"]
