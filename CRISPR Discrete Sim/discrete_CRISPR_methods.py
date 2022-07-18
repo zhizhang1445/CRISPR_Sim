@@ -93,7 +93,7 @@ def fitness_spacers(n, nh, params, sim_params):
     return res
 
 def fitness_controlled(n, nh, params, sim_params):
-    f = fitness(nh, params, sim_params)
+    f = fitness(n, nh, params, sim_params)
     f_avg = np.sum(f*n)/np.sum(n)
     f_norm = f-f_avg
 
@@ -102,7 +102,7 @@ def fitness_controlled(n, nh, params, sim_params):
     return f_norm
 
 def fitness_spacers_controlled(n, nh, params, sim_params):
-    f = fitness_spacers(nh, params, sim_params)
+    f = fitness_spacers(n, nh, params, sim_params)
     f_avg = np.sum(f*n)/np.sum(n)
     f_norm = f-f_avg
 
