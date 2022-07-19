@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import convolve
 import matplotlib.animation as animation
 import scipy
+from scipy import signal
 import json
 
 def makeGif(frame_stack, name):
@@ -29,13 +30,36 @@ def write2json(name, params, sim_params):
         json.dump(sim_params, fp)
 
 def coverage(h, params, sim_params):
-    return h/params["M"] #I know this looks stupid but the coverage is not necessarily just a scale
+    kernel = params["r"]
+    conv_ker_size = sim_params["conv_size"]
 
-def fitness(nh, params, sim_params):
+    x_linspace = np.arange(-conv_ker_size, conv_ker_size, 1)
+    coordmap = np.meshgrid(x_linspace, x_linspace)
+
+    radius = np.sqrt((coordmap[0])**2 + (coordmap[1])**2)
+    matrix_ker = np.exp(-radius/kernel)
+
+    res = signal.convolve(h, matrix_ker, mode= "same")
+    return res/params["M"] #I know this looks stupid but the coverage is not necessarily just a scale
+
+def alpha(d, params):
+    dc = params["dc"]
+    h = params["h"]
+
+    return d**h/(d**h + dc**h)
+
+def binomial_pdf(n, x, p):
+    multiplicity = scipy.special.binom(n, x)
+    bernouilli = (p**x)*((1-p)**(n-x))
+    return multiplicity*bernouilli
+
+def p_single_spacer(h, params, sim_params):
+    return h/params["M"]
+
+def fitness(n, nh, params, sim_params):
     R0 = params["R0"]
     M = params["M"]
     Nh = params["Nh"]
-
 
     h = nh/Nh
     eff_R0 = R0*(1-coverage(h, params, sim_params))**M
@@ -44,28 +68,41 @@ def fitness(nh, params, sim_params):
     res = ma.log(ma_eff_R0)
     return res
 
-def activation(d):
-    s = []
-    return s
-
-def fitness_spacers(nh, params, sim_params):
+def fitness_spacers(n, nh, params, sim_params):
     R0 = params["R0"]
     M = params["M"]
     Nh = params["Nh"]
-
+    Np = params["Np"]
 
     h = nh/Nh
-    P0 = (1-coverage(h, params, sim_params))**M
-    P1 = 1-P0
-    P_infection = P0 + np.sum()
-    eff_R0 = P_infection*R0
+    P0 = p_single_spacer(h, params, sim_params)
+    P_0_spacer = binomial_pdf(M, 0, P0)
+
+    P_1_spacer = binomial_pdf(M, 1, P0)
+    P_tt = P_0_spacer
+    for d in range(1, Np):
+        P_tt += binomial_pdf(Np, d, 1/M)*P_1_spacer*(1-alpha(d, params))
+
+    eff_R0 = P_tt*R0
     mask = (eff_R0 <= 0)
     ma_eff_R0 = ma.masked_array(eff_R0, mask = mask)
     res = ma.log(ma_eff_R0)
+
+    mask2 = ((1+res*sim_params["dt"])<=0).filled()
+    res.mask = mask2
     return res
 
 def fitness_controlled(n, nh, params, sim_params):
-    f = fitness(nh, params, sim_params)
+    f = fitness(n, nh, params, sim_params)
+    f_avg = np.sum(f*n)/np.sum(n)
+    f_norm = f-f_avg
+
+    mask2 = ((1+f_norm*sim_params["dt"])<=0).filled()
+    f_norm.mask = mask2
+    return f_norm
+
+def fitness_spacers_controlled(n, nh, params, sim_params):
+    f = fitness_spacers(n, nh, params, sim_params)
     f_avg = np.sum(f*n)/np.sum(n)
     f_norm = f-f_avg
 
@@ -95,8 +132,10 @@ def num_mutation(params, sim_params):
     if out >= 1 :
         return out #This is what mu, is the average rate of mutation
     else:
-        return num_mutation(params, sim_params) #conditioned as to have at least one mutation
-
+        try:
+            return num_mutation(params, sim_params) #conditioned as to have at least one mutation
+        except RecursionError:
+            return 0
 
 def mutation_jump(m, params, sim_params):
     shape_param = params["gamma_shape"]
@@ -114,7 +153,7 @@ def mutation_jump(m, params, sim_params):
     jump = np.round(jump)
     return jump
 
-def immunity_gain(nh, n): 
+def immunity_gain(nh, n):
     return nh + n # to gain immunity you need some amount infected
 
 def immunity_loss(nh, n):
