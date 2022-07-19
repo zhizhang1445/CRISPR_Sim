@@ -106,7 +106,7 @@ if __name__ == "__main__":
         "r":             0.5, #cross-reactivity kernel
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
-        "xdomain":                   10,
+        "xdomain":                   50,
         "dx":                         1,
         "t0":                         0, 
         "tf":                       100,
