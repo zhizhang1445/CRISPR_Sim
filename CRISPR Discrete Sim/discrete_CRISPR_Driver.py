@@ -44,7 +44,7 @@ def main(params, sim_params):
 
     for t in np.arange(t_start, t_stop, t_step):
 
-        f = ds.fitness_spacers(n, nh, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
+        f = ds.fitness_spacers_controlled(n, nh, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
         n = ds.virus_growth(n, f, params, sim_params) #update
         n = ds.mutation(n, params, sim_params)
 
@@ -71,7 +71,7 @@ def main(params, sim_params):
             break
 
     num = 0
-    sim_params["folder_name"] = "ParamSweep/Simulation#" + str(num)
+    sim_params["folder_name"] = "Simulation#" + str(num)
     while(os.path.isdir(sim_params["folder_name"])):
         sim_params["folder_name"] = "Simulation#" + str(num)
         num += 1
@@ -81,8 +81,11 @@ def main(params, sim_params):
 
     ds.write2json("", params, sim_params)
     ds.makeGif(frames_n, "n_simulation")
+    np.save("frames_n.npy", np.array(frames_n).squeeze())
     ds.makeGif(frames_nh, "nh_simulation")
+    np.save("frames_nh.npy", np.array(frames_nh).squeeze())
     ds.makeGif(frames_f, "f_simulation")
+    np.save("frames_f.npy", np.array(frames_f).squeeze())
 
     os.chdir("../")
     return True
@@ -103,7 +106,7 @@ if __name__ == "__main__":
         "r":             0.5, #cross-reactivity kernel
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
-        "xdomain":                  100,
+        "xdomain":                   10,
         "dx":                         1,
         "t0":                         0, 
         "tf":                       100,
@@ -115,6 +118,8 @@ if __name__ == "__main__":
         "n_step_prior":               5,
         "conv_size":                  1,
     }
-    for i in range(10, 100, 10):
+    os.mkdir("ParamsSweep")
+    os.chdir("ParamsSweep")
+    for i in range(0, 100, 10):
         params["Np"] = i
         main(params, sim_params)
