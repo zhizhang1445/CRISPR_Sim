@@ -70,6 +70,12 @@ def main(params, sim_params):
             print("Population Death")
             break
 
+    num = 0
+    sim_params["folder_name"] = "ParamSweep/Simulation#" + str(num)
+    while(os.path.isdir(sim_params["folder_name"])):
+        sim_params["folder_name"] = "Simulation#" + str(num)
+        num += 1
+
     os.mkdir(sim_params["folder_name"])
     os.chdir(sim_params["folder_name"])
 
@@ -77,6 +83,8 @@ def main(params, sim_params):
     ds.makeGif(frames_n, "n_simulation")
     ds.makeGif(frames_nh, "nh_simulation")
     ds.makeGif(frames_f, "f_simulation")
+
+    os.chdir("../")
     return True
 
 
@@ -90,12 +98,12 @@ if __name__ == "__main__":
         "mu":             0.1, #mutation rate
         "gamma_shape":     20, 
         "Np":              10, #Number of Cas Protein
-        "dc":               8, #Required number of complexes to activate defence
+        "dc":               5, #Required number of complexes to activate defence
         "h":               10, #coordination coeff
         "r":             0.5, #cross-reactivity kernel
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
-        "xdomain":                   10,
+        "xdomain":                  100,
         "dx":                         1,
         "t0":                         0, 
         "tf":                       100,
@@ -105,7 +113,8 @@ if __name__ == "__main__":
         "initial_mean":           [0,0],
         "initial_var":                5,
         "n_step_prior":               5,
-        "folder_name":  "simulation#11/",
         "conv_size":                  1,
     }
-    main(params, sim_params)
+    for i in range(10, 100, 10):
+        params["Np"] = i
+        main(params, sim_params)
