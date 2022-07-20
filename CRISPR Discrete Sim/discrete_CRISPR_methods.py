@@ -79,12 +79,17 @@ def fitness_spacers(n, nh, params, sim_params):
     P_0_spacer = binomial_pdf(M, 0, P0)
 
     P_1_spacer = binomial_pdf(M, 1, P0)
-    P_tt = P_0_spacer
+    P_shared = 0
     for d in range(1, Np):
-        P_tt += binomial_pdf(Np, d, 1/M)*P_1_spacer*(1-alpha(d, params))
+        P_shared += binomial_pdf(Np, d, 1/M)*P_1_spacer*(-1*alpha(d, params))
 
-    eff_R0 = P_tt*R0
+    P_tt = P_shared +P_0_spacer
+
+    if (np.min(P_0_spacer-P_shared)) < 0:
+        raise ValueError
+    
     mask = (eff_R0 <= 0)
+    eff_R0 = P_tt*R0
     ma_eff_R0 = ma.masked_array(eff_R0, mask = mask)
     res = ma.log(ma_eff_R0)
 
