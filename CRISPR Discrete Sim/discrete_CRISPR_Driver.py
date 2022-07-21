@@ -44,7 +44,7 @@ def main(params, sim_params):
 
     for t in np.arange(t_start, t_stop, t_step):
 
-        f = ds.fitness_spacers_controlled(n, nh, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
+        f = ds.fitness_shared_spacers_controlled(n, nh, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
         n = ds.virus_growth(n, f, params, sim_params) #update
         n = ds.mutation(n, params, sim_params)
 
@@ -119,8 +119,8 @@ if __name__ == "__main__":
         "n_step_prior":               5,
         "conv_size":                  1,
     }
-    os.mkdir("ParamsSweep")
-    os.chdir("ParamsSweep")
-    for i in range(0, 100, 10):
-        params["Np"] = i
+    os.mkdir("ParamsSweepRho")
+    os.chdir("ParamsSweepRho")
+    for i in range(0, 10, 1):
+        params["rho"] = 10^(-1*i)
         main(params, sim_params)
