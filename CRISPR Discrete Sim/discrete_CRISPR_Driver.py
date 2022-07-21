@@ -103,7 +103,8 @@ if __name__ == "__main__":
         "Np":              10, #Number of Cas Protein
         "dc":               5, #Required number of complexes to activate defence
         "h":               10, #coordination coeff
-        "r":             0.5, #cross-reactivity kernel
+        "r":              0.5, #cross-reactivity kernel
+        "rho":           0.25, #sharing constant
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
         "xdomain":                   50,

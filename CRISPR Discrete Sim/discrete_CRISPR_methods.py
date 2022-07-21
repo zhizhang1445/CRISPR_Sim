@@ -53,8 +53,22 @@ def binomial_pdf(n, x, p):
     bernouilli = (p**x)*((1-p)**(n-x))
     return multiplicity*bernouilli
 
+def p_zero_spacer(h, params, sim_params):
+    M = params["M"]
+    p = h/M
+    return binomial_pdf(M, 0, p)
+
 def p_single_spacer(h, params, sim_params):
-    return h/params["M"]
+    M = params["M"]
+    Nh = params["Nh"]
+    Np = params["Np"]
+
+    p = h/M
+    p_1_spacer = binomial_pdf(M, 1, p)
+    p_shared = 0
+    for d in range(1, Np):
+        p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(-1*alpha(d, params))
+    return p_shared
 
 def fitness(n, nh, params, sim_params):
     R0 = params["R0"]
@@ -70,32 +84,49 @@ def fitness(n, nh, params, sim_params):
 
 def fitness_spacers(n, nh, params, sim_params):
     R0 = params["R0"]
-    M = params["M"]
     Nh = params["Nh"]
-    Np = params["Np"]
-
     h = nh/Nh
-    P0 = p_single_spacer(h, params, sim_params)
-    P_0_spacer = binomial_pdf(M, 0, P0)
 
-    P_1_spacer = binomial_pdf(M, 1, P0)
-    P_shared = 0
-    for d in range(1, Np):
-        P_shared += binomial_pdf(Np, d, 1/M)*P_1_spacer*(-1*alpha(d, params))
+    p_0_spacer = p_zero_spacer(h, params, sim_params)
+    p_1_spacer = p_single_spacer(h, params, sim_params)
+    p_tt = p_1_spacer + p_0_spacer
 
-    P_tt = P_shared +P_0_spacer
-
-    if (np.min(P_0_spacer-P_shared)) < 0:
+    if (np.min(p_0_spacer-p_1_spacer)) < 0:
+        print("negative probability")
         raise ValueError
     
+    eff_R0 = p_tt*R0
     mask = (eff_R0 <= 0)
-    eff_R0 = P_tt*R0
     ma_eff_R0 = ma.masked_array(eff_R0, mask = mask)
     res = ma.log(ma_eff_R0)
 
     mask2 = ((1+res*sim_params["dt"])<=0).filled()
     res.mask = mask2
     return res
+
+def fitness_shared_spacers(n, nh, params, sim_params):
+    R0 = params["R0"]
+    Nh = params["Nh"]
+    rho = params["rho"]
+    h = nh/Nh
+
+    p_0_spacer = p_zero_spacer(h, params, sim_params)
+    p_1_spacer = p_single_spacer(h, params, sim_params)
+    p_tt = p_1_spacer + p_0_spacer
+
+    if (np.min(p_0_spacer-p_1_spacer)) < 0:
+        print("negative probability")
+        raise ValueError
+    
+    eff_R0 = R0*(p_tt)*np.exp(-1*n*rho)
+    mask = (eff_R0 <= 0)
+    ma_eff_R0 = ma.masked_array(eff_R0, mask = mask)
+    res = ma.log(ma_eff_R0)
+
+    mask2 = ((1+res*sim_params["dt"])<=0).filled()
+    res.mask = mask2
+    return res
+
 
 def fitness_controlled(n, nh, params, sim_params):
     f = fitness(n, nh, params, sim_params)
