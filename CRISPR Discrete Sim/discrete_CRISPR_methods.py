@@ -67,7 +67,7 @@ def p_single_spacer(h, params, sim_params):
     p_1_spacer = binomial_pdf(M, 1, p)
     p_shared = 0
     for d in range(1, Np):
-        p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(-1*alpha(d, params))
+        p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-1*alpha(d, params))
     return p_shared
 
 def fitness(n, nh, params, sim_params):
@@ -118,7 +118,12 @@ def fitness_shared_spacers(n, nh, params, sim_params):
         print("negative probability")
         raise ValueError
     
-    eff_R0 = R0*(p_tt)*np.exp(-1*n*rho)
+    try:
+        shared_p = n**rho/(n**rho + 100**rho)
+    except OverflowError:
+        shared_p = 1
+
+    eff_R0 = R0*(p_tt)*shared_p
     mask = (eff_R0 <= 0)
     ma_eff_R0 = ma.masked_array(eff_R0, mask = mask)
     res = ma.log(ma_eff_R0)
