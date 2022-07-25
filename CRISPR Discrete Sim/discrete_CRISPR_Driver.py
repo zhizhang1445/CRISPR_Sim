@@ -104,7 +104,8 @@ if __name__ == "__main__":
         "dc":               5, #Required number of complexes to activate defence
         "h":               10, #coordination coeff
         "r":              0.5, #cross-reactivity kernel
-        "rho":           0.25, #sharing constant
+        "rho":             10, #sharing constant
+        "nc":             100,
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
         "xdomain":                   50,
@@ -119,8 +120,8 @@ if __name__ == "__main__":
         "n_step_prior":               5,
         "conv_size":                  1,
     }
-    os.mkdir("ParamsSweepRho")
-    os.chdir("ParamsSweepRho")
-    for i in range(0, 10, 1):
-        params["rho"] = 10^(-1*i)
+    os.mkdir("ParamsSweepNc")
+    os.chdir("ParamsSweepNc")
+    for i in range(0, 1000, 10):
+        params["rho"] = i
         main(params, sim_params)

@@ -67,7 +67,7 @@ def p_single_spacer(h, params, sim_params):
     p_1_spacer = binomial_pdf(M, 1, p)
     p_shared = 0
     for d in range(1, Np):
-        p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-1*alpha(d, params))
+        p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-alpha(d, params))
     return p_shared
 
 def fitness(n, nh, params, sim_params):
@@ -108,6 +108,7 @@ def fitness_shared_spacers(n, nh, params, sim_params):
     R0 = params["R0"]
     Nh = params["Nh"]
     rho = params["rho"]
+    nc = params["nc"]
     h = nh/Nh
 
     p_0_spacer = p_zero_spacer(h, params, sim_params)
@@ -119,7 +120,7 @@ def fitness_shared_spacers(n, nh, params, sim_params):
         raise ValueError
     
     try:
-        shared_p = n**rho/(n**rho + 100**rho)
+        shared_p = 1-(np.power(n, rho)/(np.power(n, rho) + nc**rho))
     except OverflowError:
         shared_p = 1
 
