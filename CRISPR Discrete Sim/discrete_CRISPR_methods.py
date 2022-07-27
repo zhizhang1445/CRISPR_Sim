@@ -91,7 +91,7 @@ def fitness_spacers(n, nh, params, sim_params):
     p_1_spacer = p_single_spacer(h, params, sim_params)
     p_tt = p_1_spacer + p_0_spacer
 
-    if (np.min(p_0_spacer-p_1_spacer)) < 0:
+    if (np.min(p_tt)) < 0:
         print("negative probability")
         raise ValueError
     
@@ -115,7 +115,7 @@ def fitness_shared_spacers(n, nh, params, sim_params):
     p_1_spacer = p_single_spacer(h, params, sim_params)
     p_tt = p_1_spacer + p_0_spacer
 
-    if (np.min(p_0_spacer-p_1_spacer)) < 0:
+    if (np.min(p_0_spacer + p_1_spacer)) < 0:
         print("negative probability")
         raise ValueError
     
