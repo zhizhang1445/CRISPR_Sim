@@ -19,7 +19,7 @@ def makeGif(frame_stack, name):
     ani = animation.ArtistAnimation(
         fig, animation_frames, interval=50, blit=True, repeat_delay=1000)
     ani.save(name + ".gif")
-
+    plt.close()
     return 1
 
 def write2json(name, params, sim_params):
@@ -32,6 +32,8 @@ def write2json(name, params, sim_params):
 def coverage(h, params, sim_params):
     kernel = params["r"]
     conv_ker_size = sim_params["conv_size"]
+    if conv_ker_size == 1:
+        return h/params["M"]
 
     x_linspace = np.arange(-conv_ker_size, conv_ker_size, 1)
     coordmap = np.meshgrid(x_linspace, x_linspace)
@@ -63,7 +65,7 @@ def p_single_spacer(h, params, sim_params):
     Nh = params["Nh"]
     Np = params["Np"]
 
-    p = h/M
+    p = coverage(h, params, sim_params)
     p_1_spacer = binomial_pdf(M, 1, p)
     p_shared = 0
     for d in range(1, Np):
@@ -108,7 +110,7 @@ def fitness_shared_spacers(n, nh, params, sim_params):
     R0 = params["R0"]
     Nh = params["Nh"]
     rho = params["rho"]
-    nc = params["nc"]
+    nc = params["Nc"]
     h = nh/Nh
 
     p_0_spacer = p_zero_spacer(h, params, sim_params)

@@ -44,7 +44,7 @@ def main(params, sim_params):
 
     for t in np.arange(t_start, t_stop, t_step):
 
-        f = ds.fitness_spacers_controlled(n, nh, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
+        f = ds.fitness_spacers(n, nh, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
         n = ds.virus_growth(n, f, params, sim_params) #update
         n = ds.mutation(n, params, sim_params)
 
@@ -62,9 +62,9 @@ def main(params, sim_params):
 
         # n_step_prior = sim_params["n_step_prior"]
 
-        if (current_N > current_Nh/2) and (t > (t_stop - t_start)/2):
-            print("Population Reset")
-            break
+        # if (current_N > 10*current_Nh) and (t > (t_stop - t_start)/2):
+        #     print("Population Reset")
+        #     break
 
         if (current_N == 0):
             print("Population Death")
@@ -93,25 +93,25 @@ def main(params, sim_params):
 
 if __name__ == "__main__":
     params = { #parameters relevant for the equations
-        "Nh":           10000,
-        "N0":            1000,
+        "Nh":             100,
+        "N0":              10,
         "R0":              10,
-        "M":               50, #Also L, total number of spacers
+        "M":               10, #Also L, total number of spacers
         "D":                3, #Unused
         "mu":             0.1, #mutation rate
         "gamma_shape":     20, 
-        "Np":              10, #Number of Cas Protein
-        "dc":               5, #Required number of complexes to activate defence
+        "Np":             100, #Number of Cas Protein
+        "dc":              10, #Required number of complexes to activate defence
         "h":               10, #coordination coeff
         "r":              0.5, #cross-reactivity kernel
-        "rho":             10, #sharing constant
-        "nc":             100,
+        "rho":             5, #sharing constant
+        "Nc":             100,
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
-        "xdomain":                   50,
+        "xdomain":                   30,
         "dx":                         1,
         "t0":                         0, 
-        "tf":                       100,
+        "tf":                        10,
         "dt":                       0.1,
         "noise_mean":                 0,
         "noise_std":                0.1,
@@ -120,8 +120,8 @@ if __name__ == "__main__":
         "n_step_prior":               5,
         "conv_size":                  1,
     }
-    os.mkdir("ParamsSweepNp")
-    os.chdir("ParamsSweepNp")
-    for i in range(0, 1000, 10):
-        params["Np"] = i
+    os.mkdir("ParamsSweepNpNoCtrl")
+    os.chdir("ParamsSweepNpNoCtrl")
+    for i in range(1, 100, 10):
+        params["Np"] = i*10
         main(params, sim_params)
