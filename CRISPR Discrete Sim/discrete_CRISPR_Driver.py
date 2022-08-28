@@ -44,7 +44,7 @@ def main(params, sim_params):
 
     for t in np.arange(t_start, t_stop, t_step):
 
-        f = ds.fitness_spacers(n, nh, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
+        f = ds.fitness_spacers_controlled(n, nh, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
         n = ds.virus_growth(n, f, params, sim_params) #update
         n = ds.mutation(n, params, sim_params)
 
@@ -93,10 +93,10 @@ def main(params, sim_params):
 
 if __name__ == "__main__":
     params = { #parameters relevant for the equations
-        "Nh":             100,
-        "N0":              10,
+        "Nh":           10000,
+        "N0":            1000,
         "R0":              10,
-        "M":               10, #Also L, total number of spacers
+        "M":               50, #Also L, total number of spacers
         "D":                3, #Unused
         "mu":             0.1, #mutation rate
         "gamma_shape":     20, 
@@ -104,24 +104,34 @@ if __name__ == "__main__":
         "dc":              10, #Required number of complexes to activate defence
         "h":               10, #coordination coeff
         "r":              0.5, #cross-reactivity kernel
-        "rho":             5, #sharing constant
-        "Nc":             100,
+        "rho":              5, #sharing constant
+        "Nc":              10,
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
-        "xdomain":                   30,
+        "xdomain":                   50,
         "dx":                         1,
         "t0":                         0, 
-        "tf":                        10,
+        "tf":                       100,
         "dt":                       0.1,
         "noise_mean":                 0,
         "noise_std":                0.1,
         "initial_mean":           [0,0],
         "initial_var":                5,
         "n_step_prior":               5,
-        "conv_size":                  1,
+        "conv_size":                  1, #1 for no cross-reactivity
     }
-    os.mkdir("ParamsSweepNpNoCtrl")
-    os.chdir("ParamsSweepNpNoCtrl")
-    for i in range(1, 100, 10):
-        params["Np"] = i*10
+    os.mkdir("ParamsSweepMLong")
+    os.chdir("ParamsSweepMLong")
+    for i in range(1, 100, 1):
+        # params["r"] = 10
+        # sim_params["conv_size"] = 200
+        params["M"] = i*10
+        # params["Np"] = i*10
+        # params["Nc"] = i
+    # for i in np.arange(1, 50, 1):
+    #     params["M"] = 100
+    #     params["r"] = int(i)
+    #     sim_params["conv_size"] = int(np.ceil(i))
+    # for i in range(10):
+    #     params["M"] = 1000
         main(params, sim_params)
