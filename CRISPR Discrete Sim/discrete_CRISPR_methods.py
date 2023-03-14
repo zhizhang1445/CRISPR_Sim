@@ -223,7 +223,6 @@ def immunity_loss(nh, n):
         raise ValueError("Immunity is negative")
     elif np.sum(nh) != checksum - N :
         raise ValueError("In and out total value don't match")
-    
 
     return nh
 
