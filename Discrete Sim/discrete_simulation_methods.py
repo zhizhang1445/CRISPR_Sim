@@ -3,6 +3,7 @@ import numpy.ma as ma
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.ndimage import convolve
+from scipy import signal
 import matplotlib.animation as animation
 import scipy
 import json
@@ -29,9 +30,19 @@ def write2json(name, params, sim_params):
         json.dump(sim_params, fp)
 
 def coverage(h, params, sim_params):
-    return h/params["M"] #I know this looks stupid but the coverage is not necessarily just a scale
+    kernel = params["r"]
+    conv_ker_size = sim_params["conv_size"]
 
-def fitness(nh, params, sim_params):
+    x_linspace = np.arange(-conv_ker_size, conv_ker_size, 1)
+    coordmap = np.meshgrid(x_linspace, x_linspace)
+
+    radius = np.sqrt((coordmap[0])**2 + (coordmap[1])**2)
+    matrix_ker = np.exp(-radius/kernel)
+
+    res = signal.convolve(h, matrix_ker, mode= "same")
+    return res/params["M"] #I know this looks stupid but the coverage is not necessarily just a scale
+
+def fitness(n, nh, params, sim_params):
     R0 = params["R0"]
     M = params["M"]
     Nh = params["Nh"]
@@ -44,6 +55,15 @@ def fitness(nh, params, sim_params):
     res = ma.log(ma_eff_R0)
     return res
 
+
+def fitness_controlled(n, nh, params, sim_params):
+    f = fitness(n,nh, params, sim_params)
+    f_avg = np.sum(f*n)/np.sum(n)
+    f_norm = f-f_avg
+
+    mask2 = ((1+f_norm*sim_params["dt"])<=0).filled()
+    f_norm.mask = mask2
+    return f_norm
 
 def virus_growth(n, f, params, sim_params):
     dt = sim_params["dt"]
@@ -79,7 +99,9 @@ def mutation_jump(m, params, sim_params):
     theta = mean/shape_param
     
     for i in range(m):
-        jump = jump + np.random.gamma(shape_param, theta, size=2) #The distribution of jump is a sum of gamma distribution. 
+        angle = np.random.uniform(0, 2*np.pi) #Goodammit couldn't this have been clearer??? It's supposed to be isotropic
+        jump = jump + np.random.gamma(shape_param, theta)*np.array([np.cos(angle), np.sin(angle)])
+        #The distribution of jump is a sum of gamma distribution. 
 
     jump = np.round(jump)
     return jump

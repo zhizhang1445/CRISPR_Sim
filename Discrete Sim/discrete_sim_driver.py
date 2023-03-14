@@ -14,7 +14,7 @@ import discrete_simulation_methods as ds
 def main():
   
     params = { #parameters relevant for the equations
-        "Nh":            1000,
+        "Nh":          100000,
         "N0":             100,
         "R0":               3,
         "M":                1, #Also L
@@ -24,17 +24,17 @@ def main():
         "gamma_shape":     20, 
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
-        "xdomain":                  100,
+        "xdomain":                 1000,
         "dx":                         1,
         "t0":                         0, 
-        "tf":                        10,
+        "tf":                       100,
         "dt":                       0.1,
         "noise_mean":                 0,
         "noise_std":                0.1,
         "initial_mean":           [0,0],
         "initial_var":                5,
         "n_step_prior":              10,
-        "folder_name":   "simulation#4",
+        "folder_name":   "simulation#12",
     }
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
@@ -71,8 +71,6 @@ def main():
         n0[index] += 1
 
     n = copy.deepcopy(n0.reshape(n.shape))
-
-
 
     nh0 = np.zeros(nh.size, dtype=int) #Similarly, this is the initial value for nh
     Nh = int(params["Nh"])
@@ -125,6 +123,14 @@ def main():
         frames_n.append([n])
         times.append([t])
         N.append([current_N])
+        if (current_N > current_Nh/2) and (t > (t_stop - t_start)/2):
+            print("Population Reset")
+            break
+
+
+        if (current_N == 0):
+            print("Population Death")
+            break
     
     os.mkdir(sim_params["folder_name"])
     os.chdir(sim_params["folder_name"])
