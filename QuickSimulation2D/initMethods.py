@@ -41,3 +41,14 @@ def init_uniform(number, sim_params):
         nh0[index] += 1
 
     return nh0.reshape([2*x_range*dx, 2*x_range*dx])
+
+def init_kernel(params, sim_params):
+    kernel = params["r"]
+    conv_ker_size = sim_params["conv_size"]
+
+    x_linspace = np.arange(-conv_ker_size, conv_ker_size, 1)
+    coordmap = np.meshgrid(x_linspace, x_linspace)
+
+    radius = np.sqrt(np.sum((coordmap)**2, axis=0))
+    matrix_ker = np.exp(-radius/kernel)
+    return matrix_ker

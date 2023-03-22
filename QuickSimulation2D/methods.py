@@ -5,21 +5,15 @@ from scipy.ndimage import convolve
 from scipy import signal
 import scipy
 
-def coverage(h, params, sim_params):
-    kernel = params["r"]
-    conv_ker_size = sim_params["conv_size"]
-    if conv_ker_size == 1:
+def coverage_convolution(nh, kernel, params, sim_params):
+    h = nh/params["Nh"]
+
+    if sim_params["conv_size"] == 1:
         return h/params["M"]
-
-    x_linspace = np.arange(-conv_ker_size, conv_ker_size, 1)
-    coordmap = np.meshgrid(x_linspace, x_linspace)
-
-    radius = np.sqrt((coordmap[0])**2 + (coordmap[1])**2)
-    matrix_ker = np.exp(-radius/kernel)
-
-    res = signal.convolve(h, matrix_ker, mode= "same")
-    return res/params["M"] #I know this looks stupid but the coverage is not necessarily just a scale
-
+    else:
+        out = scipy.signal.convolve2d(h, kernel, mode='same')
+        return
+    
 def alpha(d, params):
     dc = params["dc"]
     h = params["h"]
@@ -48,11 +42,10 @@ def p_single_spacer(h, p_coverage, params, sim_params):
         p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-alpha(d, params))
     return p_shared
 
-def fitness_spacers(n, nh, params, sim_params):
+def fitness_spacers(n, nh, p, params, sim_params):
     R0 = params["R0"]
     Nh = params["Nh"]
     h = nh/Nh
-    p = coverage(h, params, sim_params)
 
     p_0_spacer = p_zero_spacer(h, p, params, sim_params)
     p_1_spacer = p_single_spacer(h, p, params, sim_params)
@@ -65,11 +58,11 @@ def fitness_spacers(n, nh, params, sim_params):
     eff_R0 = p_tt*R0
     return eff_R0
 
-def fitness_spacers_controlled(f, n, params, sim_params):
+def control_fitness(f, n, params, sim_params):
     f_avg = np.sum(f*n)/np.sum(n)
     f_norm = f-f_avg
 
-    f_norm = np.clip(f_norm, [0, None])
+    f_norm = np.clip(f_norm, 0, None)
     
     if np.min(f_norm) < 0 :
         return ValueError("Dafuq is list comprehension")
@@ -118,10 +111,10 @@ def mutation_jump(m, params, sim_params):
     jump = np.round(jump)
     return jump
 
-def immunity_gain(nh, n):
+def immunity_gain(nh, n, params, sim_params):
     return nh + n # to gain immunity you need some amount infected
 
-def immunity_loss(nh, n):
+def immunity_loss(nh, n, params, sim_params):
     N = np.sum(n)
     checksum = np.sum(nh)
 
