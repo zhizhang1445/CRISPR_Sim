@@ -12,7 +12,7 @@ def coverage_convolution(nh, kernel, params, sim_params):
         return h/params["M"]
     else:
         out = scipy.signal.convolve2d(h, kernel, mode='same')
-        return
+        return out/params["M"]
     
 def alpha(d, params):
     dc = params["dc"]
@@ -21,7 +21,16 @@ def alpha(d, params):
     return d**h/(d**h + dc**h)
 
 def binomial_pdf(n, x, p):
-    multiplicity = scipy.special.binom(n, x)
+    if x == 0 or x == n:
+        multiplicity = 1
+    elif x  == 1 or x == n-1:
+        multiplicity = n
+    else:
+        multiplicity = scipy.special.binom(n, x)
+    
+    if multiplicity == 0:
+        return ValueError("Sorry Bernouilli is rolling in his grace")
+    
     bernouilli = (p**x)*((1-p)**(n-x))
     return multiplicity*bernouilli
 
@@ -52,8 +61,7 @@ def fitness_spacers(n, nh, p, params, sim_params):
     p_tt = p_1_spacer + p_0_spacer
 
     if (np.min(p_tt)) < 0:
-        print("negative probability")
-        raise ValueError
+        raise ValueError("negative probability")
     
     eff_R0 = p_tt*R0
     return eff_R0
