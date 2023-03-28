@@ -3,6 +3,7 @@ import numpy.ma as ma
 import pandas as pd
 from scipy.ndimage import convolve
 from scipy import signal
+from joblib import Parallel, delayed
 import scipy
 
 def coverage_convolution(nh, kernel, params, sim_params):
@@ -13,6 +14,21 @@ def coverage_convolution(nh, kernel, params, sim_params):
     else:
         out = scipy.signal.convolve2d(h, kernel, mode='same')
         return out/params["M"]
+    
+def coverage_parrallel_convolution(nh, kernel, params, sim_params):
+    num_cores = 32
+    input_data = nh/params["Nh"]
+
+    def convolve_subset(input_data_subset):
+        return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
+
+    input_data_subsets = np.array_split(input_data, num_cores, axis = 0)
+
+    results = Parallel(n_jobs=num_cores)(delayed(convolve_subset)(subset) for subset in input_data_subsets)
+
+    output_data = np.concatenate(results, axis = 0)
+
+    return output_data/params["M"]
     
 def alpha(d, params):
     dc = params["dc"]
@@ -119,10 +135,9 @@ def mutation_jump(m, params, sim_params):
     jump = np.round(jump)
     return jump
 
-def immunity_gain(nh, n, params, sim_params):
-    return nh + n # to gain immunity you need some amount infected
+def immunity_update(nh, n, params, sim_params):
+    nh = nh + n # to gain immunity you need some amount infected
 
-def immunity_loss(nh, n, params, sim_params):
     N = np.sum(n)
     checksum = np.sum(nh)
 
@@ -138,6 +153,14 @@ def immunity_loss(nh, n, params, sim_params):
         raise ValueError("In and out total value don't match")
 
     return nh
+
+def immunity_loss_by_index(nh, n, params, simparams):
+    nh = nh + n
+
+    non_zero_ind = np.where(nh != 0)
+    prob_ind = binomial_pdf(n, 0, n[non_zero_ind])
+    pass
+
 
 def mutation(n, params, sim_params): #this is the joined function for the mutation step
     checksum = np.sum(n)
