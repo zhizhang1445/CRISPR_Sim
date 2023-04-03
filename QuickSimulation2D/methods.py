@@ -16,7 +16,7 @@ def coverage_convolution(nh, kernel, params, sim_params):
         return out/params["M"]
     
 def coverage_parrallel_convolution(nh, kernel, params, sim_params):
-    num_cores = 32
+    num_cores = 30
     input_data = nh/params["Nh"]
 
     def convolve_subset(input_data_subset):
@@ -70,11 +70,13 @@ def p_single_spacer(h, p_coverage, params, sim_params):
 def fitness_spacers(n, nh, p, params, sim_params):
     R0 = params["R0"]
     Nh = params["Nh"]
+    M = params["M"]
     h = nh/Nh
 
     p_0_spacer = p_zero_spacer(h, p, params, sim_params)
     p_1_spacer = p_single_spacer(h, p, params, sim_params)
-    p_tt = p_1_spacer + p_0_spacer
+    # p_tt = p_0_spacer + p_1_spacer
+    p_tt = (1-p)**M #Remove this is just for testing
 
     if (np.min(p_tt)) < 0:
         raise ValueError("negative probability")
@@ -154,12 +156,15 @@ def immunity_update(nh, n, params, sim_params):
 
     return nh
 
-def immunity_loss_by_index(nh, n, params, simparams):
-    nh = nh + n
+def immunity_update_w_loss_by_index(nh, n, params, simparams):
+    Nh = params["Nh"]
+    extra_spacers = Nh - np.sum(nh)
 
-    non_zero_ind = np.where(nh != 0)
-    prob_ind = binomial_pdf(n, 0, n[non_zero_ind])
-    pass
+    index = []
+    for i in range(extra_spacers):
+        indexes = np.argwhere(nh > 0)
+        index.append(np.random,choice(indexes.shape[0]))
+    return index
 
 
 def mutation(n, params, sim_params): #this is the joined function for the mutation step
