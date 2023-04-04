@@ -73,6 +73,9 @@ def fitness_spacers(n, nh, p, params, sim_params):
     M = params["M"]
     h = nh/Nh
 
+    f_new = np.zeros(n.shape)
+    x_ind, y_ind = np.nonzero(n)
+
     p_0_spacer = p_zero_spacer(h, p, params, sim_params)
     p_1_spacer = p_single_spacer(h, p, params, sim_params)
     # p_tt = p_0_spacer + p_1_spacer
@@ -80,9 +83,9 @@ def fitness_spacers(n, nh, p, params, sim_params):
 
     if (np.min(p_tt)) < 0:
         raise ValueError("negative probability")
-    
-    eff_R0 = p_tt*R0
-    return eff_R0
+        
+    f_new[x_ind, y_ind] = np.log(R0*n[x_ind, y_ind])
+    return f_new
 
 def control_fitness(f, n, params, sim_params):
     f_avg = np.sum(f*n)/np.sum(n)
@@ -97,7 +100,14 @@ def control_fitness(f, n, params, sim_params):
 
 def virus_growth(n, f, params, sim_params):
     dt = sim_params["dt"]
-    n = np.random.poisson((1+f*dt)*n)
+    cond1 = (1+f*dt) > 0
+    cond2 = n > 0
+
+    x_ind, y_ind = np.where(np.bitwise_and(cond1, cond2))
+    n[x_ind, y_ind] = np.random.poisson((1+f*dt)*n[x_ind, y_ind])
+
+    x_ind, y_ind = np.where(np.invert(cond1))
+    n[x_ind, y_ind] = 0
     return  n
 
 def num_mutants(n, params, sim_params):
