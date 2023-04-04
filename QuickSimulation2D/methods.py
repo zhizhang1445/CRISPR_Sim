@@ -16,14 +16,31 @@ def coverage_convolution(nh, kernel, params, sim_params):
         out = scipy.signal.convolve2d(h, kernel, mode='same')
         return out/params["M"]
     
+def square_split(array, n):
+    if np.ndim(array) == 1:
+        return np.split(array, n)
+    elif np.ndim(array) > 2:
+        raise IndexError("2D or 1D plz")
+    
+    res = []
+    column_split = np.split(array, n, axis=0)
+    for col in column_split:
+        row_col_split = np.split(col, n, axis=0)
+        res.extend(row_col_split)
+    return res
+    
 def coverage_parrallel_convolution(nh, kernel, params, sim_params):
     num_cores = sim_params["num_threads"]
     input_data = nh/params["Nh"]
 
     def convolve_subset(input_data_subset):
-        return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
+        if np.sum(input_data_subset) == 0:
+            return input_data_subset
+        else:
+            return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
 
-    input_data_subsets = np.array_split(input_data, num_cores, axis = 0)
+    input_data_subsets = square_split(input_data, num_cores)
+    # input_data_subsets = np.split(input_data, num_cores, axis=0)
 
     results = Parallel(n_jobs=num_cores)(delayed(convolve_subset)(subset) for subset in input_data_subsets)
 
@@ -171,7 +188,7 @@ def immunity_update(nh, n, params, sim_params):
 
     return nh
 
-def immunity_update_parallel(nh, n, params, simparams):
+def immunity_update_parallel(nh, n, params, sim_params):
     Nh = params["Nh"]
     N = np.sum(n)
     num_threads = sim_params["num_threads"]

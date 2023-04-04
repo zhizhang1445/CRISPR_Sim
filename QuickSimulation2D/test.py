@@ -10,8 +10,8 @@ from methods import *
 from initMethods import *
 
 params = { #parameters relevant for the equations
-    "Nh":             20,
-    "N0":             20,
+    "Nh":            1000,
+    "N0":             100,
     "R0":               5,
     "M":                1, #Also L, total number of spacers
     "D":                3, #Unused
@@ -24,7 +24,7 @@ params = { #parameters relevant for the equations
     "rho":           5e-5, #spacer sharing coeff
 }
 sim_params = { #parameters relevant for the simulation (including Inital Valuess)
-    "xdomain":                    5,
+    "xdomain":                  100,
     "dx":                         1,
     "t0":                         0, 
     "tf":                       100,
@@ -42,43 +42,19 @@ n = init_guassian(params["N0"], sim_params)
 nh = init_guassian(params["Nh"], sim_params)
 kernel = init_kernel(params, sim_params)
 
+p = coverage_parrallel_convolution(nh, kernel, params, sim_params)
+# num_cores = sim_params["num_threads"]
+# input_data = nh/params["Nh"]
 
+# def convolve_subset(input_data_subset):
+#     if np.sum(input_data_subset) == 0:
+#         return input_data_subset
+#     else:
+#         return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
 
-# plt.figure()
+# input_data_subsets = square_split(input_data, num_cores)
+# print(input_data_subsets)
+# # plt.figure()
 # plt.title("before")
 # plt.imshow(nh)
-
-Nh = params["Nh"]
-N = np.sum(n)
-num_threads = sim_params["num_threads"]
-nh = nh + n
-num_to_remove = np.sum(nh) - Nh
-
-nonzero_indices = np.nonzero(nh)
-nonzero_values = [nh[index] for index in zip(*nonzero_indices)]
-index_nonzero_w_repeats = []
-for value, index in zip(nonzero_values, zip(*nonzero_indices)):
-    for i in range(int(value)):
-        index_nonzero_w_repeats.append(index)
-
-sample_flat_ind = np.random.choice(len(index_nonzero_w_repeats), num_to_remove,replace = False)
-
-ind_per_thread_list = np.split(sample_flat_ind, num_threads)
-
-def remove_points(array, flat_index):
-    sample_ind = [index_nonzero_w_repeats[i] for i in flat_index]
-    for x,y in sample_ind:
-        array[x, y] -= 1
-
-    return array
-
-array = np.zeros(nh.shape)
-results = Parallel(n_jobs=num_threads)(
-    delayed(remove_points)(array, flat_index) for flat_index in ind_per_thread_list)
-nh = nh + np.sum(results, axis=0)
-
-if np.sum(nh) != Nh:
-    raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
-if np.min(nh) < 0:
-    raise ValueError("bacteria population is negative")
 
