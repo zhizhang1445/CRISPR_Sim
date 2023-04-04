@@ -4,6 +4,7 @@ import pandas as pd
 from scipy.ndimage import convolve
 from scipy import signal
 from joblib import Parallel, delayed
+from numpy.random import default_rng
 import scipy
 
 def coverage_convolution(nh, kernel, params, sim_params):
@@ -15,14 +16,31 @@ def coverage_convolution(nh, kernel, params, sim_params):
         out = scipy.signal.convolve2d(h, kernel, mode='same')
         return out/params["M"]
     
+def square_split(array, n):
+    if np.ndim(array) == 1:
+        return np.split(array, n)
+    elif np.ndim(array) > 2:
+        raise IndexError("2D or 1D plz")
+    
+    res = []
+    column_split = np.split(array, n, axis=0)
+    for col in column_split:
+        row_col_split = np.split(col, n, axis=0)
+        res.extend(row_col_split)
+    return res
+    
 def coverage_parrallel_convolution(nh, kernel, params, sim_params):
-    num_cores = 30
+    num_cores = sim_params["num_threads"]
     input_data = nh/params["Nh"]
 
     def convolve_subset(input_data_subset):
-        return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
+        if np.sum(input_data_subset) == 0:
+            return input_data_subset
+        else:
+            return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
 
-    input_data_subsets = np.array_split(input_data, num_cores, axis = 0)
+    input_data_subsets = square_split(input_data, num_cores)
+    # input_data_subsets = np.split(input_data, num_cores, axis=0)
 
     results = Parallel(n_jobs=num_cores)(delayed(convolve_subset)(subset) for subset in input_data_subsets)
 
@@ -114,8 +132,12 @@ def num_mutants(n, params, sim_params):
     mu = params["mu"]
     dt = sim_params["dt"]
 
+    x_ind, y_ind = np.nonzero(n)
+    map = np.zeros(n.shape, dtype=np.int16)
+
     p = 1-np.exp(-1*mu*dt)
-    return np.random.binomial(n, p) #   so this is really prob of finding k mutation in n possible virus with prob p in 1-e^-mudt
+    map[x_ind, y_ind] = np.random.binomial(n[x_ind, y_ind], p) #   so this is really prob of finding k mutation in n possible virus with prob p in 1-e^-mudt
+    return map
                                     #   so p to not mutated is really e^-mu*dt
 
 def num_mutation(params, sim_params):
@@ -166,15 +188,42 @@ def immunity_update(nh, n, params, sim_params):
 
     return nh
 
-def immunity_update_w_loss_by_index(nh, n, params, simparams):
+def immunity_update_parallel(nh, n, params, sim_params):
     Nh = params["Nh"]
-    extra_spacers = Nh - np.sum(nh)
+    N = np.sum(n)
+    num_threads = sim_params["num_threads"]
+    nh = nh + n
+    num_to_remove = np.sum(nh) - Nh
 
-    index = []
-    for i in range(extra_spacers):
-        indexes = np.argwhere(nh > 0)
-        index.append(np.random,choice(indexes.shape[0]))
-    return index
+    nonzero_indices = np.nonzero(nh)
+    nonzero_values = [nh[index] for index in zip(*nonzero_indices)]
+    index_nonzero_w_repeats = []
+    for value, index in zip(nonzero_values, zip(*nonzero_indices)):
+        for i in range(int(value)):
+            index_nonzero_w_repeats.append(index)
+
+    sample_flat_ind = np.random.choice(len(index_nonzero_w_repeats), num_to_remove,replace = False)
+
+    ind_per_thread_list = np.split(sample_flat_ind, num_threads)
+
+    def remove_points(array, flat_index):
+        sample_ind = [index_nonzero_w_repeats[i] for i in flat_index]
+        for x,y in sample_ind:
+            array[x, y] -= 1
+
+        return array
+
+    array = np.zeros(nh.shape)
+    results = Parallel(n_jobs=num_threads)(
+        delayed(remove_points)(array, flat_index) for flat_index in ind_per_thread_list)
+    nh = nh + np.sum(results, axis=0)
+
+    if np.sum(nh) != Nh:
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
+    if np.min(nh) < 0:
+        raise ValueError("bacteria population is negative")
+
+    return nh
 
 
 def mutation(n, params, sim_params): #this is the joined function for the mutation step
@@ -210,4 +259,46 @@ def mutation(n, params, sim_params): #this is the joined function for the mutati
 
     return n
 
+def mutation_parallel(n, params, sim_params):
+    num_threads = sim_params["num_threads"]
+    checksum = np.sum(n)
 
+    mutation_map = num_mutants(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
+    x_ind, y_ind = np.nonzero(mutation_map) #finding out where the mutations happends
+
+    x_ind_subsets = np.array_split(x_ind, num_threads)
+    y_ind_subsets = np.array_split(y_ind, num_threads)
+
+    def mutation_single(n_to_add, x_ind, y_ind):
+
+        for x_i, y_i in zip(x_ind, y_ind):
+            num_mutants_at_site = mutation_map[x_i, y_i] # unpacking the number of mutated virus
+            n_to_add[x_i, y_i] -= num_mutants_at_site
+
+            for j in range(num_mutants_at_site): #Find out where those virus have moved to
+                num_mutation_at_site = num_mutation(params, sim_params) #Sampling how many single mutation for a single virus (num of jumps) 
+                jump = mutation_jump(num_mutation_at_site, params, sim_params) #Sampling the jump
+
+                try:
+                    new_x_loc = (x_i + jump[0]).astype(int)
+                    new_y_loc = (y_i + jump[1]).astype(int)
+                    n_to_add[new_x_loc, new_y_loc] += 1
+                except IndexError: #Array Out of Bounds
+                    if new_x_loc >= n.shape[0]:
+                        new_x_loc = -1 #lmao this is gonna be a pain in cpp
+                    if new_y_loc >= n.shape[1]:
+                        new_y_loc = -1
+                    n_to_add[new_x_loc, new_y_loc] += 1
+        return n_to_add
+
+    n_to_add = np.zeros(n.shape)
+
+    results = Parallel(n_jobs=num_threads)(delayed(mutation_single)(
+        n_to_add, x_ind, y_ind) for x_ind, y_ind in zip(x_ind_subsets, y_ind_subsets))
+    # results = mutation_single(n_to_add, x_ind, y_ind)
+
+    n = n+np.sum(results, axis = 0)
+    if checksum != np.sum(n):
+        raise ValueError("Cries cuz Bacteria died during mutation")
+    return n
+    
