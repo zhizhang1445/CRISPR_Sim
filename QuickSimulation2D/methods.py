@@ -174,39 +174,35 @@ def immunity_update(nh, n, params, sim_params):
 def immunity_update_parallel(nh, n, params, simparams):
     Nh = params["Nh"]
     N = np.sum(n)
-    num_threads = simparams["num_threads"]
+    num_threads = sim_params["num_threads"]
     nh = nh + n
-
+    num_to_remove = np.sum(nh) - Nh
 
     nonzero_indices = np.nonzero(nh)
     nonzero_values = [nh[index] for index in zip(*nonzero_indices)]
-    nonzero_list = []
-    for value in nonzero_values:
-        if isinstance(value, np.ndarray):
-            nonzero_list.extend(value.tolist())
-        else:
-            nonzero_list.append(value)
+    index_nonzero_w_repeats = []
+    for value, index in zip(nonzero_values, zip(*nonzero_indices)):
+        for i in range(int(value)):
+            index_nonzero_w_repeats.append(index)
 
+    sample_flat_ind = np.random.choice(len(index_nonzero_w_repeats), num_to_remove,replace = False)
 
-    def remove_points(array, num_points, seed):
-        # np.random.seed(seed)
-        flattened_indices = np.random.choice(np.arange(array.size), num_points, replace=False)
-        indices = np.unravel_index(flattened_indices, array.shape)
-        for i, j in zip(*indices):
-            grid_points = array[i, j]
-            if grid_points.size > 0:
-                point_idx = np.random.choice(np.arange(grid_points.size))
-                grid_points = np.delete(grid_points, point_idx)
-                array[i, j] = grid_points
+    ind_per_thread_list = np.split(sample_flat_ind, num_threads)
+
+    def remove_points(array, flat_index):
+        sample_ind = [index_nonzero_w_repeats[i] for i in flat_index]
+        for x,y in sample_ind:
+            array[x, y] -= 1
+
         return array
 
+    array = np.zeros(nh.shape)
     results = Parallel(n_jobs=num_threads)(
-        delayed(remove_points)(nh, N) for i in range(num_threads))
+        delayed(remove_points)(array, flat_index) for flat_index in ind_per_thread_list)
+    nh = nh + np.sum(results, axis=0)
 
-    nh = np.sum(results, axis=0)
-    
     if np.sum(nh) != Nh:
-        raise ValueError("bacteria died at immunity gain")
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     if np.min(nh) < 0:
         raise ValueError("bacteria population is negative")
 
