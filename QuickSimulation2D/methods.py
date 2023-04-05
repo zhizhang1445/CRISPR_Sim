@@ -16,16 +16,16 @@ def coverage_convolution(nh, kernel, params, sim_params):
         out = scipy.signal.convolve2d(h, kernel, mode='same')
         return out/params["M"]
     
-def square_split(array, n):
+def square_split(array, num_split):
     if np.ndim(array) == 1:
-        return np.split(array, n)
+        return np.split(array, num_split)
     elif np.ndim(array) > 2:
         raise IndexError("2D or 1D plz")
     
     res = []
-    column_split = np.split(array, n, axis=0)
+    column_split = np.array_split(array, num_split, axis=0)
     for col in column_split:
-        row_col_split = np.split(col, n, axis=0)
+        row_col_split = np.array_split(col, num_split, axis=0)
         res.extend(row_col_split)
     return res
     
@@ -122,8 +122,7 @@ def virus_growth(n, f, params, sim_params):
     cond2 = n > 0
 
     x_ind, y_ind = np.where(np.bitwise_and(cond1, cond2))
-    n[x_ind, y_ind] = np.random.poisson((1+f*dt)*n[x_ind, y_ind])
-
+    n[x_ind, y_ind] = np.random.poisson((1+f[x_ind, y_ind]*dt)*n[x_ind, y_ind])
     x_ind, y_ind = np.where(np.invert(cond1))
     n[x_ind, y_ind] = 0
     return  n

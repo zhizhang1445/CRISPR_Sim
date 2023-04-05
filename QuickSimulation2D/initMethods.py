@@ -1,6 +1,7 @@
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
 
 def init_guassian(init_num, sim_params):
     x_range = sim_params["xdomain"] #Initialize the spaces
@@ -30,6 +31,41 @@ def init_guassian(init_num, sim_params):
 
     return n0.reshape([2*x_range*dx, 2*x_range*dx])
 
+def init_guassian_parallel(init_num, sim_params):
+    x_range = sim_params["xdomain"] #Initialize the spaces
+    dx = sim_params["dx"]
+    N0 = init_num
+    initial_position = sim_params["initial_mean"]
+    initial_var = sim_params["initial_var"]
+    num_threads = sim_params["num_threads"]
+
+    x_linspace = np.arange(-x_range+initial_position[0], x_range+initial_position[0], dx)
+    y_linspace = np.arange(-x_range+initial_position[1], x_range+initial_position[1], dx)
+    tt_len = len(x_linspace)
+    
+
+    p_marg_x = np.exp(-x_linspace**2/(2*(initial_var**2)))
+    p_marg_x = p_marg_x/np.sum(p_marg_x) # initial prob distribution for n: Gaussian dist
+
+    p_marg_y = np.exp(-x_linspace**2/(2*(initial_var**2)))
+    p_marg_y = p_marg_y/np.sum(p_marg_y) 
+
+    iter_per_thread = np.array_split(np.arange(0, N0), num_threads)
+
+    def add_Gaussian_noise(subset):
+        array = np.zeros([tt_len, tt_len], dtype=np.int16)
+
+        for i in subset:
+            x_index = np.random.choice(tt_len, p=p_marg_x) 
+            y_index = np.random.choice(tt_len, p=p_marg_y) 
+            array[x_index, y_index]+= 1
+        return array
+
+    results = Parallel(n_jobs=num_threads)(delayed(add_Gaussian_noise)(subset) for subset in iter_per_thread)
+    out = np.sum(results, axis=0)
+
+    return out
+
 def init_uniform(number, sim_params):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
@@ -37,10 +73,88 @@ def init_uniform(number, sim_params):
     nh0 = np.zeros([2*x_range*dx, 2*x_range*dx], dtype=int) #Similarly, this is the initial value for nh    
 
     for i in range(number):
-        index = np.random.choice(nh0.size) #similarly, this is really slow
-        nh0[index] += 1
+        x_index = np.random.choice(nh0.size)
+        y_index = np.random.choice(nh0.size)  #similarly, this is really slow
+        nh0[x_index, y_index] += 1
 
-    return nh0.reshape([2*x_range*dx, 2*x_range*dx])
+    return nh0
+
+def init_uniform_parallel(init_num, sim_params):
+    x_range = sim_params["xdomain"] #Initialize the spaces
+    dx = sim_params["dx"]
+    N = init_num
+    num_threads = sim_params["num_threads"]
+
+    x_linspace = np.arange(-x_range, x_range, dx)
+    y_linspace = np.arange(-x_range, x_range, dx)
+    tt_len_x = len(x_linspace)
+    tt_len_y = len(y_linspace)
+
+    p_marg_x = 1/tt_len_x
+
+    p_marg_y = 1/tt_len_y
+
+    iter_per_thread = np.array_split(np.arange(0, N), num_threads)
+
+    def add_Gaussian_noise(subset):
+        array = np.zeros([tt_len_x, tt_len_y], dtype=np.int16)
+
+        for i in subset:
+            x_index = np.random.choice(tt_len_x, p=p_marg_x) 
+            y_index = np.random.choice(tt_len_x, p=p_marg_y) 
+            array[x_index, y_index]+= 1
+        return array
+
+    results = Parallel(n_jobs=num_threads)(delayed(add_Gaussian_noise)(subset) for subset in iter_per_thread)
+    out = np.sum(results, axis=0)
+
+    return out
+
+def init_exptail_parrallel(init_num, params, sim_params):
+    x_range = sim_params["xdomain"] #Initialize the spaces
+    dx = sim_params["dx"]
+    N0 = init_num
+    initial_position = sim_params["initial_mean"]
+    initial_var = sim_params["initial_var"]
+    num_threads = sim_params["num_threads"]
+    tau = params["M"]*params["Nh"]/params["N0"]
+    v0 = params["v0"]
+    axis = sim_params["tail_axis"]
+
+    x_linspace = np.arange(-x_range+initial_position[0], x_range+initial_position[0], dx)
+    y_linspace = np.arange(-x_range+initial_position[1], x_range+initial_position[1], dx)
+    tt_len = len(x_linspace)
+    
+    p_marg_x = np.exp(-x_linspace**2/(2*(initial_var**2)))
+    p_marg_y = np.exp(-y_linspace**2/(2*(initial_var**2)))
+
+    if axis[0] == 0:
+        p_marg_x = np.exp(-x_linspace/(v0*tau))*np.heaviside(axis[1](x_linspace-initial_position[0]), 0)
+
+ # initial prob distribution for n: Gaussian dist
+
+    if axis[0] == 1:
+        p_marg_y = np.exp(-y_linspace/(v0*tau))*np.heaviside(axis[1]*(y_linspace-initial_position[1]), 0)
+
+
+    p_marg_x = p_marg_x/np.sum(p_marg_x)
+    p_marg_y = p_marg_y/np.sum(p_marg_y) 
+
+    iter_per_thread = np.array_split(np.arange(0, N0), num_threads)
+
+    def add_Gaussian_noise(subset):
+        array = np.zeros([tt_len, tt_len], dtype=np.int16)
+
+        for i in subset:
+            x_index = np.random.choice(tt_len, p=p_marg_x) 
+            y_index = np.random.choice(tt_len, p=p_marg_y) 
+            array[x_index, y_index]+= 1
+        return array
+
+    results = Parallel(n_jobs=num_threads)(delayed(add_Gaussian_noise)(subset) for subset in iter_per_thread)
+    out = np.sum(results, axis=0)
+
+    return out
 
 def init_kernel(params, sim_params):
     kernel = params["r"]
