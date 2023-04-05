@@ -7,16 +7,7 @@ from joblib import Parallel, delayed
 from numpy.random import default_rng
 import scipy
 
-def coverage_convolution(nh, kernel, params, sim_params):
-    h = nh/params["Nh"]
-
-    if sim_params["conv_size"] == 1:
-        return h/params["M"]
-    else:
-        out = scipy.signal.convolve2d(h, kernel, mode='same')
-        return out/params["M"]
-    
-def square_split(array, num_split):
+def square_split(array, num_split): #Find smallest matrix possible and make it I'm thinking 100x100
     if np.ndim(array) == 1:
         return np.split(array, num_split)
     elif np.ndim(array) > 2:
@@ -29,9 +20,12 @@ def square_split(array, num_split):
         res.extend(row_col_split)
     return res
     
-def coverage_parrallel_convolution(nh, kernel, params, sim_params):
+def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This is already parallel, SPARSE THIS
     num_cores = sim_params["num_threads"]
     input_data = nh/params["Nh"]
+
+    non_zero_index = np.nonzero(nh)
+
 
     def convolve_subset(input_data_subset):
         if np.sum(input_data_subset) == 0:
@@ -47,14 +41,23 @@ def coverage_parrallel_convolution(nh, kernel, params, sim_params):
     output_data = np.concatenate(results, axis = 0)
 
     return output_data/params["M"]
-    
-def alpha(d, params):
+
+def coverage_sparse_parrallel(nh, kernel, params, sim_params):
+    num_cores = sim_params["num_threads"]
+    input_data = nh/params["Nh"]
+
+    non_zero_index = np.nonzero(nh)
+
+    pass
+
+
+def alpha(d, params): #TODO SPARSE THIS?
     dc = params["dc"]
     h = params["h"]
 
     return d**h/(d**h + dc**h)
 
-def binomial_pdf(n, x, p):
+def binomial_pdf(n, x, p): #TODO SPARSE THIS
     if x == 0 or x == n:
         multiplicity = 1
     elif x  == 1 or x == n-1:
@@ -68,12 +71,12 @@ def binomial_pdf(n, x, p):
     bernouilli = (p**x)*((1-p)**(n-x))
     return multiplicity*bernouilli
 
-def p_zero_spacer(h, p_coverage, params, sim_params):
+def p_zero_spacer(h, p_coverage, params, sim_params): #TODO SPARSE
     M = params["M"]
     p = p_coverage
     return binomial_pdf(M, 0, p)
 
-def p_single_spacer(h, p_coverage, params, sim_params):
+def p_single_spacer(h, p_coverage, params, sim_params): #TODO Sparse this
     M = params["M"]
     Nh = params["Nh"]
     Np = params["Np"]
@@ -85,7 +88,7 @@ def p_single_spacer(h, p_coverage, params, sim_params):
         p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-alpha(d, params))
     return p_shared
 
-def fitness_spacers(n, nh, p, params, sim_params):
+def fitness_spacers_parallel(n, nh, p, params, sim_params): #TODO PARALLELIZE THIS
     R0 = params["R0"]
     Nh = params["Nh"]
     M = params["M"]
@@ -105,29 +108,18 @@ def fitness_spacers(n, nh, p, params, sim_params):
     f_new[x_ind, y_ind] = np.log(R0*n[x_ind, y_ind])
     return f_new
 
-def control_fitness(f, n, params, sim_params):
-    f_avg = np.sum(f*n)/np.sum(n)
-    f_norm = f-f_avg
-
-    f_norm = np.clip(f_norm, 0, None)
-    
-    if np.min(f_norm) < 0 :
-        return ValueError("Dafuq is list comprehension")
-    
-    return f_norm
-
-def virus_growth(n, f, params, sim_params):
+def virus_growth_parallel(n, f, params, sim_params): #TODO PARALLELIZE THIS
     dt = sim_params["dt"]
     cond1 = (1+f*dt) > 0
     cond2 = n > 0
 
     x_ind, y_ind = np.where(np.bitwise_and(cond1, cond2))
-    n[x_ind, y_ind] = np.random.poisson((1+f[x_ind, y_ind]*dt)*n[x_ind, y_ind]).astype(np.int16)
+    n[x_ind, y_ind] = np.random.poisson((1+f[x_ind, y_ind]*dt)*n[x_ind, y_ind])
     x_ind, y_ind = np.where(np.invert(cond1))
     n[x_ind, y_ind] = 0
     return  n
 
-def num_mutants(n, params, sim_params):
+def num_mutants_parallel(n, params, sim_params): #TODO PARALLELIZE THIS
     mu = params["mu"]
     dt = sim_params["dt"]
 
@@ -168,31 +160,12 @@ def mutation_jump(m, params, sim_params):
     jump = np.round(jump)
     return jump
 
-def immunity_update(nh, n, params, sim_params):
-    nh = nh + n # to gain immunity you need some amount infected
-
-    N = np.sum(n)
-    checksum = np.sum(nh)
-
-    for i in range(N):
-        indexes = np.argwhere(nh > 0)
-        index = np.random.choice(indexes.shape[0]) # Choose random spots uniformly to loose immunity
-
-        nh[indexes[index, 0], indexes[index, 1]] -= 1 #There is a race condition, don't fuck with this
-    
-    if np.any(nh<0):
-        raise ValueError("Immunity is negative")
-    elif np.sum(nh) != checksum - N :
-        raise ValueError("In and out total value don't match")
-
-    return nh
-
 def immunity_update_parallel(nh, n, params, sim_params):
     Nh = params["Nh"]
     N = np.sum(n)
     num_threads = sim_params["num_threads"]
     nh = nh + n
-    num_to_remove = int(np.sum(nh) - Nh)
+    num_to_remove = np.sum(nh) - Nh
 
     nonzero_indices = np.nonzero(nh)
     nonzero_values = [nh[index] for index in zip(*nonzero_indices)]
@@ -203,7 +176,7 @@ def immunity_update_parallel(nh, n, params, sim_params):
 
     sample_flat_ind = np.random.choice(len(index_nonzero_w_repeats), num_to_remove,replace = False)
 
-    ind_per_thread_list = np.array_split(sample_flat_ind, num_threads)
+    ind_per_thread_list = np.split(sample_flat_ind, num_threads)
 
     def remove_points(flat_index):
         array = np.zeros(nh.shape)
@@ -224,52 +197,18 @@ def immunity_update_parallel(nh, n, params, sim_params):
 
     return nh
 
-
-def mutation(n, params, sim_params): #this is the joined function for the mutation step
-    checksum = np.sum(n)
-
-    mutation_map = num_mutants(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
-    x_ind, y_ind = np.nonzero(mutation_map) #finding out where the mutations happends
-    num_mutation_sites = x_ind.size 
-    
-    for i in range(num_mutation_sites): 
-        num_mutants_at_site = mutation_map[x_ind[i], y_ind[i]] # unpacking the number of mutated virus
-        n[x_ind[i], y_ind[i]] -= num_mutants_at_site #first remove all the virus that moved
-
-        for j in range(num_mutants_at_site): #Find out where those virus have moved to
-            num_mutation_at_site = num_mutation(params, sim_params) #Sampling how many single mutation for a single virus (num of jumps) 
-            jump = mutation_jump(num_mutation_at_site, params, sim_params) #Sampling the jump
-
-            try:
-                new_x_loc = (x_ind[i] + jump[0]).astype(int)
-                new_y_loc = (y_ind[i] + jump[1]).astype(int)
-                n[new_x_loc, new_y_loc] += 1
-            except IndexError: #Array Out of Bounds
-                if new_x_loc >= n.shape[0]:
-                    new_x_loc = -1 #lmao this is gonna be a pain in cpp
-                if new_y_loc >= n.shape[1]:
-                    new_y_loc = -1
-                n[new_x_loc, new_y_loc] += 1
-
-    if np.sum(n) != checksum : #Should conserve number of virus/infection
-        raise ValueError('mutation changed total number of n')
-    elif np.any(n<0): #Should definitely not be negative
-        raise ValueError('mutation made n negative')
-
-    return n
-
 def mutation_parallel(n, params, sim_params):
     num_threads = sim_params["num_threads"]
     checksum = np.sum(n)
 
-    mutation_map = num_mutants(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
+    mutation_map = num_mutants_parallel(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
     x_ind, y_ind = np.nonzero(mutation_map) #finding out where the mutations happends
 
     x_ind_subsets = np.array_split(x_ind, num_threads)
     y_ind_subsets = np.array_split(y_ind, num_threads)
 
     def mutation_single(x_ind, y_ind):
-        n_to_add = np.zeros(n.shape, dtype=np.int64)
+        n_to_add = np.zeros(n.shape)
         for x_i, y_i in zip(x_ind, y_ind):
             num_mutants_at_site = mutation_map[x_i, y_i] # unpacking the number of mutated virus
             n_to_add[x_i, y_i] -= num_mutants_at_site
@@ -299,4 +238,3 @@ def mutation_parallel(n, params, sim_params):
     if checksum != np.sum(n):
         raise ValueError("Cries cuz Bacteria died during mutation")
     return n
-    

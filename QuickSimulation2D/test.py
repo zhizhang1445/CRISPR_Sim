@@ -6,7 +6,7 @@ from scipy import signal
 from joblib import Parallel, delayed
 import scipy
 
-from methods import *
+from methods_parallel import *
 from initMethods import *
 
 params = { #parameters relevant for the equations
@@ -16,6 +16,7 @@ params = { #parameters relevant for the equations
     "M":                1, #Also L, total number of spacers
     "D":                3, #Unused
     "mu":               2, #mutation rate
+    "v0":               2,
     "gamma_shape":     200, 
     "Np":               0, #Number of Cas Protein
     "dc":               3, #Required number of complexes to activate defence
@@ -33,28 +34,27 @@ sim_params = { #parameters relevant for the simulation (including Inital Valuess
     "initial_var":                5,
     "n_step_prior":               5,
     "conv_size":               1000,
-    "num_threads":               2,
+    "num_threads":                4,
+    "tail_axis":            [1, -1],
 }
 
-
-
-n = init_guassian(params["N0"], sim_params)
-nh = init_guassian(params["Nh"], sim_params)
+n = init_guassian_parallel(params["N0"], sim_params)
+nh = init_exptail_parrallel(params["Nh"], params, sim_params)
 kernel = init_kernel(params, sim_params)
 
-p = coverage_parrallel_convolution(nh, kernel, params, sim_params)
-# num_cores = sim_params["num_threads"]
-# input_data = nh/params["Nh"]
+# p = coverage_parrallel_convolution(nh, kernel, params, sim_params)
+x_ind, y_ind = np.nonzero(nh)
+# print(non_zero_ind)
+x_ind_subsets = np.array_split(x_ind, 4)
+y_ind_subsets = np.array_split(y_ind, 4)
+ksize = sim_params["conv_size"]
 
-# def convolve_subset(input_data_subset):
-#     if np.sum(input_data_subset) == 0:
-#         return input_data_subset
-#     else:
-#         return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
+def conv_sparse_index(indexes):
+    array = np.zeros(nh, dtype=float)
+    for x_ind, y_ind in indexes:
+        value = n[x_ind, y_ind]
+        array[x_ind-ksize:x_ind+ksize, y_ind-ksize:y_ind+ksize] += kernel*value
+    return array
 
-# input_data_subsets = square_split(input_data, num_cores)
-# print(input_data_subsets)
-# # plt.figure()
-# plt.title("before")
-# plt.imshow(nh)
+
 
