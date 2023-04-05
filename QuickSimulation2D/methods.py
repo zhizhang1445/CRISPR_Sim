@@ -206,7 +206,7 @@ def immunity_update_parallel(nh, n, params, sim_params):
     ind_per_thread_list = np.array_split(sample_flat_ind, num_threads)
 
     def remove_points(flat_index):
-        array = np.zeros(nh.shape)
+        array = np.zeros(nh.shape, dtype = np.int64)
         sample_ind = [index_nonzero_w_repeats[i] for i in flat_index]
         for x,y in sample_ind:
             array[x, y] -= 1

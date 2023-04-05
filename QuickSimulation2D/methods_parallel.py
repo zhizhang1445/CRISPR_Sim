@@ -179,7 +179,7 @@ def immunity_update_parallel(nh, n, params, sim_params):
     ind_per_thread_list = np.split(sample_flat_ind, num_threads)
 
     def remove_points(flat_index):
-        array = np.zeros(nh.shape)
+        array = np.zeros(nh.shape, dtype=np.int64)
         sample_ind = [index_nonzero_w_repeats[i] for i in flat_index]
         for x,y in sample_ind:
             array[x, y] -= 1
@@ -201,14 +201,14 @@ def mutation_parallel(n, params, sim_params):
     num_threads = sim_params["num_threads"]
     checksum = np.sum(n)
 
-    mutation_map = num_mutants_parallel(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
+    mutation_map = num_mutants(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
     x_ind, y_ind = np.nonzero(mutation_map) #finding out where the mutations happends
 
     x_ind_subsets = np.array_split(x_ind, num_threads)
     y_ind_subsets = np.array_split(y_ind, num_threads)
 
     def mutation_single(x_ind, y_ind):
-        n_to_add = np.zeros(n.shape)
+        n_to_add = np.zeros(n.shape, dtype=np.int64)
         for x_i, y_i in zip(x_ind, y_ind):
             num_mutants_at_site = mutation_map[x_i, y_i] # unpacking the number of mutated virus
             n_to_add[x_i, y_i] -= num_mutants_at_site
