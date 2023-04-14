@@ -102,7 +102,7 @@ def fitness_spacers(n, nh, p, params, sim_params):
     if (np.min(p_tt)) < 0:
         raise ValueError("negative probability")
         
-    f_new[x_ind, y_ind] = np.log(R0*n[x_ind, y_ind])
+    f_new[x_ind, y_ind] = np.log(R0*p_tt[x_ind, y_ind])
     return f_new
 
 def control_fitness(f, n, params, sim_params):

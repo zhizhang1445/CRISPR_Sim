@@ -87,8 +87,8 @@ def init_uniform_parallel(init_num, sim_params):
 
     x_linspace = np.arange(-x_range, x_range, dx)
     y_linspace = np.arange(-x_range, x_range, dx)
-    tt_len_x = len(x_linspace)
-    tt_len_y = len(y_linspace)
+    tt_len_x = np.size(x_linspace)
+    tt_len_y = np.size(y_linspace)
 
     p_marg_x = 1/tt_len_x
 
@@ -97,7 +97,7 @@ def init_uniform_parallel(init_num, sim_params):
     iter_per_thread = np.array_split(np.arange(0, N), num_threads)
 
     def add_Gaussian_noise(subset):
-        array = np.zeros([tt_len_x, tt_len_y], dtype=np.int16)
+        array = np.zeros([tt_len_x, tt_len_y], dtype=int)
 
         for i in subset:
             x_index = np.random.choice(tt_len_x, p=p_marg_x) 

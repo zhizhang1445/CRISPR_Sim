@@ -105,7 +105,7 @@ def fitness_spacers_parallel(n, nh, p, params, sim_params): #TODO PARALLELIZE TH
     if (np.min(p_tt)) < 0:
         raise ValueError("negative probability")
         
-    f_new[x_ind, y_ind] = np.log(R0*n[x_ind, y_ind])
+    f_new[x_ind, y_ind] = np.log(R0*p_tt[x_ind, y_ind])
     return f_new
 
 def virus_growth_parallel(n, f, params, sim_params): #TODO PARALLELIZE THIS
@@ -201,7 +201,7 @@ def mutation_parallel(n, params, sim_params):
     num_threads = sim_params["num_threads"]
     checksum = np.sum(n)
 
-    mutation_map = num_mutants(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
+    mutation_map = num_mutants_parallel(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
     x_ind, y_ind = np.nonzero(mutation_map) #finding out where the mutations happends
 
     x_ind_subsets = np.array_split(x_ind, num_threads)
