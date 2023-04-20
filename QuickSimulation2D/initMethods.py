@@ -73,8 +73,8 @@ def init_uniform(number, sim_params):
     nh0 = np.zeros([2*x_range*dx, 2*x_range*dx], dtype=int) #Similarly, this is the initial value for nh    
 
     for i in range(number):
-        x_index = np.random.choice(nh0.size)
-        y_index = np.random.choice(nh0.size)  #similarly, this is really slow
+        x_index = np.random.choice(nh0.shape[0])
+        y_index = np.random.choice(nh0.shape[1])  #similarly, this is really slow
         nh0[x_index, y_index] += 1
 
     return nh0
@@ -110,7 +110,7 @@ def init_uniform_parallel(init_num, sim_params):
 
     return out
 
-def init_exptail_parrallel(init_num, params, sim_params):
+def init_exptail_parallel(init_num, params, sim_params):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     N0 = init_num
