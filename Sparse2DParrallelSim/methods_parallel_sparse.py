@@ -24,8 +24,6 @@ def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This i
     num_cores = sim_params["num_threads"]
     input_data = nh/params["Nh"]
 
-    non_zero_index = np.nonzero(nh)
-
     def convolve_subset(input_data_subset):
         if np.sum(input_data_subset) == 0:
             return input_data_subset
@@ -33,7 +31,6 @@ def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This i
             return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
 
     input_data_subsets = square_split(input_data, num_cores)
-    # input_data_subsets = np.split(input_data, num_cores, axis=0)
 
     results = Parallel(n_jobs=num_cores)(delayed(convolve_subset)(subset) for subset in input_data_subsets)
 
@@ -41,33 +38,60 @@ def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This i
 
     return output_data/params["M"]
 
-# def coverage_sparse_parrallel(nh_sparse, flat_kernel, params, sim_params):
-#     num_cores = sim_params["num_threads"]
-#     input_data = nh_sparse/params["Nh"]
+def coverage_sparse_parrallel(nh, n, kernel, params, sim_params):
+    conv_size = sim_params["conv_size"]
+    Nh = params["Nh"]
+    M = params["M"]
+    num_threads = sim_params["num_threads"]
 
-#     for index, value in input_data:
-        
-#     pass
+    x_ind_nh, y_ind_nh = nh.nonzero()
+    x_ind_n, y_ind_n = n.nonzero()
+
+    ind_nh_subsets = zip(np.array_split(x_ind_nh, num_threads), np.array_split(y_ind_nh, num_threads))
+    ind_n_subsets = zip(np.array_split(x_ind_n, num_threads), np.array_split(y_ind_n, num_threads))
+
+    def convolve_subset(ind_nh, ind_n):
+        res = scipy.sparse.dok_matrix(nh.shape, dtype=int)
+        for x_nh, y_nh in zip(x_ind_nh, y_ind_nh):
+            for x_n, y_n in zip(x_ind_n, y_ind_n):
+
+                x_kernel = np.abs(x_nh-x_n)
+                y_kernel = np.abs(y_nh-y_n)
+
+                if np.any((x_kernel >= conv_size, y_kernel>= conv_size)):
+                    continue
+                
+                value = nh[x_nh, y_nh]/Nh
+                
+                try:
+                    interaction = kernel[x_kernel, y_kernel]
+                except(IndexError):
+                    print("wtf? Convolution out of Bounds??", x_kernel, y_kernel)
+
+                    break
+
+                res[x_n, y_n]+= value*interaction
+        return res
+
+    results = Parallel(n_jobs=num_threads)(delayed(convolve_subset)
+        (ind_nh_subset, ind_n_subset) for ind_nh_subset, ind_n_subset 
+            in zip(ind_nh_subsets, ind_n_subsets))
+
+    out = np.sum(results, axis=0)/M
 
 
-def alpha(d, params): #TODO SPARSE THIS?
+def alpha(d, params): #This doesn't need to be sparsed
     dc = params["dc"]
     h = params["h"]
 
     return d**h/(d**h + dc**h)
 
-def binomial_pdf(n, x, p): #TODO SPARSE THIS
-    if x == 0 or x == n:
-        multiplicity = 1
-    elif x  == 1 or x == n-1:
-        multiplicity = n
-    else:
-        multiplicity = scipy.special.binom(n, x)
+def binomial_pdf(n, x, p): #TODO Not Tested but sparsed in Theory
+    x_ind, y_ind = np.nonzero(n)
+    multiplicity = scipy.sparse.dok_matrix(n.shape, dtype = int)
+    multiplicity[x_ind, y_ind] = scipy.special.binom(n[x_ind, y_ind], x)
     
-    if multiplicity == 0:
-        return ValueError("Sorry Bernouilli is rolling in his grace")
-    
-    bernouilli = (p**x)*((1-p)**(n-x))
+    bernouilli = np.power(p, x)*np.power((-p+1), (n-x))
     return multiplicity*bernouilli
 
 def p_zero_spacer(h, p_coverage, params, sim_params): #TODO SPARSE
@@ -75,7 +99,7 @@ def p_zero_spacer(h, p_coverage, params, sim_params): #TODO SPARSE
     p = p_coverage
     return binomial_pdf(M, 0, p)
 
-def p_single_spacer(h, p_coverage, params, sim_params): #TODO Sparse this
+def p_single_spacer(h, p_coverage, params, sim_params): #TODO Sparsed in Theory
     M = params["M"]
     Nh = params["Nh"]
     Np = params["Np"]
@@ -93,11 +117,11 @@ def fitness_spacers_parallel(n, nh, p, params, sim_params): #TODO PARALLELIZE TH
     M = params["M"]
     h = nh/Nh
 
-    f_new = np.zeros(n.shape)
+    f_new = scipy.sparse.dok_matrix(n.shape, dtype=float)
     x_ind, y_ind = np.nonzero(n)
 
-    p_0_spacer = p_zero_spacer(h, p, params, sim_params)
-    p_1_spacer = p_single_spacer(h, p, params, sim_params)
+    # p_0_spacer = p_zero_spacer(h, p, params, sim_params)
+    # p_1_spacer = p_single_spacer(h, p, params, sim_params)
     # p_tt = p_0_spacer + p_1_spacer
     p_tt = (1-p)**M #Remove this is just for testing
 
@@ -130,7 +154,7 @@ def num_mutants_parallel(n, params, sim_params): #TODO PARALLELIZE THIS
     return map
                                     #   so p to not mutated is really e^-mu*dt
 
-def num_mutation(params, sim_params):
+def num_mutation(params, sim_params): #Sparse is not needed
     mu = params["mu"]
     dt = sim_params["dt"]
 
@@ -178,7 +202,7 @@ def immunity_update_parallel(nh, n, params, sim_params):
     ind_per_thread_list = np.split(sample_flat_ind, num_threads)
 
     def remove_points(flat_index):
-        array = np.zeros(nh.shape, dtype=np.int64)
+        array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
         sample_ind = [index_nonzero_w_repeats[i] for i in flat_index]
         for x,y in sample_ind:
             array[x, y] -= 1
