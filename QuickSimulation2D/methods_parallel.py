@@ -26,7 +26,6 @@ def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This i
 
     non_zero_index = np.nonzero(nh)
 
-
     def convolve_subset(input_data_subset):
         if np.sum(input_data_subset) == 0:
             return input_data_subset
