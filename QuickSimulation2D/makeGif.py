@@ -6,6 +6,7 @@ from scipy.ndimage import convolve
 import matplotlib.animation as animation
 import scipy
 import json
+import time
 
 
 def makeGif(frame_stack, name):
@@ -28,4 +29,7 @@ def write2json(name, params, sim_params):
 
     with open(name + '_sim_params.json', 'w') as fp:
         json.dump(sim_params, fp)
+
+def time_conv(st):
+    return time.strftime("%H:%M:%S", time.gmtime(st))
 
