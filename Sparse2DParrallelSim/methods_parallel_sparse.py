@@ -38,7 +38,7 @@ def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This i
 
     return output_data/params["M"]
 
-def coverage_sparse_parrallel(nh, n, kernel, params, sim_params):
+def coverage_sparse_parrallel(nh, n, kernel_quarter, params, sim_params):
     conv_size = sim_params["conv_size"]
     Nh = params["Nh"]
     M = params["M"]
@@ -47,37 +47,43 @@ def coverage_sparse_parrallel(nh, n, kernel, params, sim_params):
     x_ind_nh, y_ind_nh = nh.nonzero()
     x_ind_n, y_ind_n = n.nonzero()
 
-    ind_nh_subsets = zip(np.array_split(x_ind_nh, num_threads), np.array_split(y_ind_nh, num_threads))
-    ind_n_subsets = zip(np.array_split(x_ind_n, num_threads), np.array_split(y_ind_n, num_threads))
+    x_nh_sets = np.array_split(x_ind_nh, num_threads)
+    y_nh_sets = np.array_split(y_ind_nh, num_threads)
+    x_n_sets = np.array_split(x_ind_n, num_threads)
+    y_n_sets = np.array_split(y_ind_n, num_threads)
 
-    def convolve_subset(ind_nh, ind_n):
-        res = scipy.sparse.dok_matrix(nh.shape, dtype=int)
+    input_h = np.divide(nh, Nh)
+
+    def convolve_subset(x_ind_nh, y_ind_nh, x_ind_n, y_ind_n):
+        res = scipy.sparse.dok_matrix(nh.shape, dtype=float)
         for x_nh, y_nh in zip(x_ind_nh, y_ind_nh):
             for x_n, y_n in zip(x_ind_n, y_ind_n):
 
                 x_kernel = np.abs(x_nh-x_n)
                 y_kernel = np.abs(y_nh-y_n)
 
-                if np.any((x_kernel >= conv_size, y_kernel>= conv_size)):
+                if np.any((x_kernel >= conv_size, y_kernel >= conv_size)):
                     continue
                 
-                value = nh[x_nh, y_nh]/Nh
+                value = input_h[x_nh, y_nh]
                 
                 try:
-                    interaction = kernel[x_kernel, y_kernel]
+                    interaction = kernel_quarter[x_kernel, y_kernel]
                 except(IndexError):
                     print("wtf? Convolution out of Bounds??", x_kernel, y_kernel)
-
                     break
 
-                res[x_n, y_n]+= value*interaction
+                res[x_n, y_n] += value*interaction
         return res
 
     results = Parallel(n_jobs=num_threads)(delayed(convolve_subset)
-        (ind_nh_subset, ind_n_subset) for ind_nh_subset, ind_n_subset 
-            in zip(ind_nh_subsets, ind_n_subsets))
+        (x_ind_nh, y_ind_nh, x_ind_n, y_ind_n) 
+            for x_ind_nh, y_ind_nh, x_ind_n, y_ind_n 
+                in zip(x_nh_sets, y_nh_sets, x_n_sets, y_n_sets))
 
-    out = np.sum(results, axis=0)/M
+    out = np.sum(results, axis=0)
+    # out = convolve_subset()
+    return out/M
 
 
 def alpha(d, params): #This doesn't need to be sparsed

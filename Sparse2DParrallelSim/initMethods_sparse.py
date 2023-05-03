@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import scipy
 from joblib import Parallel, delayed
 
-def init_guassian_parallel(init_num, sim_params, type = "n"):
+def init_guassian(init_num, sim_params, type = "n"):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     N0 = init_num
@@ -41,7 +41,7 @@ def init_guassian_parallel(init_num, sim_params, type = "n"):
 
     return out
 
-def init_uniform_parallel(init_num, sim_params):
+def init_uniform(init_num, sim_params):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     N = init_num
@@ -69,7 +69,7 @@ def init_uniform_parallel(init_num, sim_params):
 
     return out
 
-def init_exptail_parallel(init_num, params, sim_params, type = "nh"):
+def init_exptail(init_num, params, sim_params, type = "nh"):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     N0 = init_num
@@ -120,6 +120,17 @@ def init_quarter_kernel(params, sim_params): #Kernel is not parrallel
     conv_ker_size = sim_params["conv_size"]
 
     x_linspace = np.arange(0, conv_ker_size, 1)
+    coordmap = np.array(np.meshgrid(x_linspace, x_linspace)).squeeze()
+
+    radius = np.sqrt(np.sum((coordmap)**2, axis=0))
+    matrix_ker = np.exp(-radius/kernel)
+    return matrix_ker
+
+def init_full_kernel(params, sim_params): #Kernel is all four quadrants
+    kernel = params["r"]
+    conv_ker_size = sim_params["conv_size"]
+
+    x_linspace = np.arange(-conv_ker_size, conv_ker_size, 1)
     coordmap = np.array(np.meshgrid(x_linspace, x_linspace)).squeeze()
 
     radius = np.sqrt(np.sum((coordmap)**2, axis=0))
