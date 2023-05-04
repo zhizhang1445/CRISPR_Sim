@@ -3,40 +3,78 @@ import numpy.ma as ma
 import pandas as pd
 from scipy.ndimage import convolve
 from scipy import signal
-from joblib import Parallel, delayed
+from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
+from concurrent.futures import as_completed
 import scipy
 
-def square_split(array, num_split): #Find smallest matrix possible and make it I'm thinking 100x100
+def square_split(array, split_size): #Find smallest matrix possible and make it I'm thinking 100x100
     if np.ndim(array) == 1:
-        return np.split(array, num_split)
+        return np.split(array, len(array)//split_size)
     elif np.ndim(array) > 2:
         raise IndexError("2D or 1D plz")
+
+    def getIndexes(subarrays, axis):
+        sizes = [subarray.shape[axis] for subarray 
+                        in subarrays]
+        index = 0
+        indexes = [0]
+        for size in sizes[:-1]:
+            index = index+size
+            indexes.append(index)
+        return indexes
     
-    res = []
-    column_split = np.array_split(array, num_split, axis=0)
-    for col in column_split:
-        row_col_split = np.array_split(col, num_split, axis=0)
-        res.extend(row_col_split)
-    return res
+    subarrays = []
+    start_indices = []
+
+    col_subarrays = np.array_split(array, array.shape[0]//split_size, axis=0)
+    col_indexes = getIndexes(col_subarrays, 0)
+
+    for subarray, col_index in zip(col_subarrays, col_indexes):
+        row_subarrays = np.array_split(subarray, array.shape[1]//split_size, axis=1)
+        subarrays.extend(row_subarrays)
+        row_indexes = getIndexes(row_subarrays, 1)
+        for row_index in row_indexes:
+            start_indices.append((col_index, row_index))
+
+    # Create a list of starting indices for each subarray
+    return subarrays, start_indices
+
     
 def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This is already parallel, SPARSE THIS
     num_cores = sim_params["num_threads"]
     input_data = nh/params["Nh"]
 
-    def convolve_subset(input_data_subset):
+    def masked_array(subarray, loc_i): 
+        subarray_shape = subarray.shape
+        array_masked = np.zeros_like(input_data)
+
+        x_loc, y_loc = loc_i
+        array_masked[x_loc:x_loc+subarray_shape[0], 
+                     y_loc:y_loc+subarray_shape[1]] = subarray
+
+        return array_masked
+    
+    def convolve_subset(input_data_subset, start_index):
         if np.sum(input_data_subset) == 0:
             return input_data_subset
+        
         else:
-            return scipy.signal.convolve2d(input_data_subset, kernel, mode='same')
+            masked_input = masked_array(input_data_subset, start_index)
+            return scipy.signal.convolve2d(masked_input, kernel, mode='same')
 
-    input_data_subsets = square_split(input_data, num_cores)
+    input_data_subsets, start_indexes = square_split(input_data, 32)
 
-    results = Parallel(n_jobs=num_cores)(delayed(convolve_subset)(subset) for subset in input_data_subsets)
+    # results = Parallel(n_jobs=num_cores, backend="multiprocessing")
+    results = Parallel(n_jobs=num_cores)(delayed(convolve_subset)(subset, index) for subset, index 
+                in zip(input_data_subsets, start_indexes))
 
-    output_data = np.concatenate(results, axis = 0)
+    # output = np.sum(results, axis=0)
+    output = np.zeros_like(input_data)
+    for result in results:
+        output += result
 
-    return output_data/params["M"]
+    return output/params["M"]
 
 def coverage_sparse_parrallel(nh, n, kernel_quarter, params, sim_params):
     conv_size = sim_params["conv_size"]
@@ -49,14 +87,14 @@ def coverage_sparse_parrallel(nh, n, kernel_quarter, params, sim_params):
 
     x_nh_sets = np.array_split(x_ind_nh, num_threads)
     y_nh_sets = np.array_split(y_ind_nh, num_threads)
-    x_n_sets = np.array_split(x_ind_n, num_threads)
-    y_n_sets = np.array_split(y_ind_n, num_threads)
 
     input_h = np.divide(nh, Nh)
 
-    def convolve_subset(x_ind_nh, y_ind_nh, x_ind_n, y_ind_n):
+    def convolve_subset(x_ind_nh, y_ind_nh):
         res = scipy.sparse.dok_matrix(nh.shape, dtype=float)
         for x_nh, y_nh in zip(x_ind_nh, y_ind_nh):
+            value = input_h[x_nh, y_nh]
+
             for x_n, y_n in zip(x_ind_n, y_ind_n):
 
                 x_kernel = np.abs(x_nh-x_n)
@@ -64,8 +102,6 @@ def coverage_sparse_parrallel(nh, n, kernel_quarter, params, sim_params):
 
                 if np.any((x_kernel >= conv_size, y_kernel >= conv_size)):
                     continue
-                
-                value = input_h[x_nh, y_nh]
                 
                 try:
                     interaction = kernel_quarter[x_kernel, y_kernel]
@@ -77,10 +113,10 @@ def coverage_sparse_parrallel(nh, n, kernel_quarter, params, sim_params):
         return res
 
     results = Parallel(n_jobs=num_threads)(delayed(convolve_subset)
-        (x_ind_nh, y_ind_nh, x_ind_n, y_ind_n) 
-            for x_ind_nh, y_ind_nh, x_ind_n, y_ind_n 
-                in zip(x_nh_sets, y_nh_sets, x_n_sets, y_n_sets))
-
+        (x_ind_nh, y_ind_nh) 
+            for x_ind_nh, y_ind_nh
+                in zip(x_nh_sets, y_nh_sets))
+    
     out = np.sum(results, axis=0)
     # out = convolve_subset()
     return out/M
@@ -95,8 +131,11 @@ def alpha(d, params): #This doesn't need to be sparsed
 def binomial_pdf(n, x, p): #TODO Not Tested but sparsed in Theory
     x_ind, y_ind = np.nonzero(n)
     multiplicity = scipy.sparse.dok_matrix(n.shape, dtype = int)
-    multiplicity[x_ind, y_ind] = scipy.special.binom(n[x_ind, y_ind], x)
-    
+    if scipy.sparse.issparse(n):
+        multiplicity[x_ind, y_ind] = scipy.special.binom(n[x_ind, y_ind].todense(), x)
+    else:
+        multiplicity[x_ind, y_ind] = scipy.special.binom(n[x_ind, y_ind], x)
+
     bernouilli = np.power(p, x)*np.power((-p+1), (n-x))
     return multiplicity*bernouilli
 
@@ -156,7 +195,11 @@ def num_mutants_parallel(n, params, sim_params): #TODO PARALLELIZE THIS
     map = np.zeros(n.shape, dtype=np.int16)
 
     p = 1-np.exp(-1*mu*dt)
-    map[x_ind, y_ind] = np.random.binomial(n[x_ind, y_ind], p) #   so this is really prob of finding k mutation in n possible virus with prob p in 1-e^-mudt
+    if scipy.sparse.issparse(n):
+        map[x_ind, y_ind] = np.random.binomial(n[x_ind, y_ind].todense(), p) #   so this is really prob of finding k mutation in n possible virus with prob p in 1-e^-mudt
+    else:
+        map[x_ind, y_ind] = np.random.binomial(n[x_ind, y_ind], p)
+    
     return map
                                     #   so p to not mutated is really e^-mu*dt
 
@@ -221,7 +264,10 @@ def immunity_update_parallel(nh, n, params, sim_params):
 
     if np.sum(nh) != Nh:
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
-    if np.min(nh) < 0:
+    
+    min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
+
+    if min_val < 0:
         raise ValueError("bacteria population is negative")
 
     return nh
@@ -237,7 +283,7 @@ def mutation_parallel(n, params, sim_params):
     y_ind_subsets = np.array_split(y_ind, num_threads)
 
     def mutation_single(x_ind, y_ind):
-        n_to_add = np.zeros(n.shape, dtype=np.int64)
+        n_to_add = scipy.sparse.dok_matrix(n.shape, dtype=np.int64)
         for x_i, y_i in zip(x_ind, y_ind):
             num_mutants_at_site = mutation_map[x_i, y_i] # unpacking the number of mutated virus
             n_to_add[x_i, y_i] -= num_mutants_at_site
@@ -257,8 +303,6 @@ def mutation_parallel(n, params, sim_params):
                         new_y_loc = -1
                     n_to_add[new_x_loc, new_y_loc] += 1
         return n_to_add
-
-
 
     results = Parallel(n_jobs=num_threads)(delayed(mutation_single)(x_ind, y_ind) for x_ind, y_ind in zip(x_ind_subsets, y_ind_subsets))
     # results = mutation_single(n_to_add, x_ind, y_ind)
