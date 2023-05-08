@@ -39,11 +39,12 @@ def square_split(array, split_size): #Find smallest matrix possible and make it 
 
     # Create a list of starting indices for each subarray
     return subarrays, start_indices
-
-    
-def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This is already parallel, SPARSE THIS
+  
+def coverage_parrallel_convolution(nh, n, kernel, params, sim_params): #TODO This is already parallel, SPARSE THIS
     num_cores = sim_params["num_threads"]
     input_data = nh/params["Nh"]
+    if scipy.sparse.issparse(nh):
+        nh = nh.toarray()
 
     def masked_array(subarray, loc_i): 
         subarray_shape = subarray.shape
@@ -57,7 +58,7 @@ def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This i
     
     def convolve_subset(input_data_subset, start_index):
         if np.sum(input_data_subset) == 0:
-            return input_data_subset
+            return np.nan
         
         else:
             masked_input = masked_array(input_data_subset, start_index)
@@ -70,9 +71,13 @@ def coverage_parrallel_convolution(nh, kernel, params, sim_params): #TODO This i
                 in zip(input_data_subsets, start_indexes))
 
     # output = np.sum(results, axis=0)
-    output = np.zeros_like(input_data)
+    x_ind, y_ind = np.nonzero(n)
+    output = scipy.sparse.dok_matrix(input_data.shape, dtype=float)
     for result in results:
-        output += result
+        if np.isnan(result):
+            continue
+        else:
+            output[x_ind, y_ind] += result[x_ind, y_ind]
 
     return output/params["M"]
 
@@ -121,71 +126,75 @@ def coverage_sparse_parrallel(nh, n, kernel_quarter, params, sim_params):
     # out = convolve_subset()
     return out/M
 
-
 def alpha(d, params): #This doesn't need to be sparsed
     dc = params["dc"]
     h = params["h"]
 
     return d**h/(d**h + dc**h)
 
-def binomial_pdf(n, x, p): #TODO Not Tested but sparsed in Theory
-    x_ind, y_ind = np.nonzero(n)
-    multiplicity = scipy.sparse.dok_matrix(n.shape, dtype = int)
+def binomial_pdf(n, x, p_dense): #TODO Not Tested but sparsed in Theory
     if scipy.sparse.issparse(n):
+        x_ind, y_ind = np.nonzero(n)
+        multiplicity = scipy.sparse.dok_matrix(n.shape)
         multiplicity[x_ind, y_ind] = scipy.special.binom(n[x_ind, y_ind].todense(), x)
     else:
-        multiplicity[x_ind, y_ind] = scipy.special.binom(n[x_ind, y_ind], x)
+        multiplicity = scipy.special.binom(n, x)
 
-    bernouilli = np.power(p, x)*np.power((-p+1), (n-x))
+    bernouilli = np.power(p_dense, x)*np.power((1-p_dense), (n-x))
     return multiplicity*bernouilli
 
-def p_zero_spacer(h, p_coverage, params, sim_params): #TODO SPARSE
+def p_zero_spacer(p_dense, params, sim_params): #TODO SPARSE
     M = params["M"]
-    p = p_coverage
-    return binomial_pdf(M, 0, p)
+    return binomial_pdf(M, 0, p_dense)
 
-def p_single_spacer(h, p_coverage, params, sim_params): #TODO Sparsed in Theory
+def p_single_spacer(p_dense, params, sim_params): #TODO Sparsed in Theory
     M = params["M"]
-    Nh = params["Nh"]
     Np = params["Np"]
 
-    p = p_coverage
-    p_1_spacer = binomial_pdf(M, 1, p)
+    p_1_spacer = binomial_pdf(M, 1, p_dense)
     p_shared = 0
     for d in range(1, Np):
         p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-alpha(d, params))
     return p_shared
 
-def fitness_spacers_parallel(n, nh, p, params, sim_params): #TODO PARALLELIZE THIS
+def fitness_spacers_parallel(n, nh, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
     R0 = params["R0"]
     Nh = params["Nh"]
     M = params["M"]
-    h = nh/Nh
 
-    f_new = scipy.sparse.dok_matrix(n.shape, dtype=float)
-    x_ind, y_ind = np.nonzero(n)
+    x_ind, y_ind = np.nonzero(p_sparse) #also == np.nonzero(n)
+    p_dense = np.array(p_sparse[x_ind, y_ind].todense()).squeeze()
 
-    # p_0_spacer = p_zero_spacer(h, p, params, sim_params)
-    # p_1_spacer = p_single_spacer(h, p, params, sim_params)
-    # p_tt = p_0_spacer + p_1_spacer
-    p_tt = (1-p)**M #Remove this is just for testing
+    p_0_spacer = p_zero_spacer(p_dense, params, sim_params)
+    p_1_spacer = p_single_spacer(p_dense, params, sim_params)
+    p_tt = p_0_spacer + p_1_spacer
+    # p_tt = np.power((1-p_dense), M)
 
-    if (np.min(p_tt)) < 0:
-        raise ValueError("negative probability")
+    if np.min(p_tt) < 0:
+        raise ValueError("Negative Probability")
         
-    f_new[x_ind, y_ind] = np.log(R0*p_tt[x_ind, y_ind])
-    return f_new
+    res = scipy.sparse.dok_matrix(n.shape, dtype=float)
+    res[x_ind, y_ind] = np.log(R0*p_tt)
+    return res
 
-def virus_growth_parallel(n, f, params, sim_params): #TODO PARALLELIZE THIS
+def virus_growth_parallel(n, f_sparse, params, sim_params): #TODO PARALLELIZE THIS
     dt = sim_params["dt"]
-    cond1 = (1+f*dt) > 0
-    cond2 = n > 0
+    x_ind, y_ind = n.nonzero()
+    if scipy.sparse.issparse(f_sparse):
+        f_dense = np.array(f_sparse[x_ind, y_ind].todense())
+    else:
+        f_dense = f_sparse[x_ind, y_ind]
 
-    x_ind, y_ind = np.where(np.bitwise_and(cond1, cond2))
-    n[x_ind, y_ind] = np.random.poisson((1+f[x_ind, y_ind]*dt)*n[x_ind, y_ind])
-    x_ind, y_ind = np.where(np.invert(cond1))
-    n[x_ind, y_ind] = 0
-    return  n
+    if scipy.sparse.issparse(n):
+        n_dense = np.array(n[x_ind, y_ind].todense())
+    else:
+        n_dense = n[x_ind, y_ind]
+
+    mean = np.clip((1+f_dense*dt), a_min = 0, a_max=None)*n_dense
+
+    n_new = scipy.sparse.dok_matrix(n.shape)
+    n_new[x_ind, y_ind] = np.random.poisson(mean)
+    return  n_new
 
 def num_mutants_parallel(n, params, sim_params): #TODO PARALLELIZE THIS
     mu = params["mu"]
