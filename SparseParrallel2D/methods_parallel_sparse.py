@@ -58,7 +58,7 @@ def coverage_parrallel_convolution(nh, n, kernel, params, sim_params): #TODO Thi
     
     def convolve_subset(input_data_subset, start_index):
         if np.sum(input_data_subset) == 0:
-            return np.nan
+            return np.array([])
         
         else:
             masked_input = masked_array(input_data_subset, start_index)
@@ -74,7 +74,7 @@ def coverage_parrallel_convolution(nh, n, kernel, params, sim_params): #TODO Thi
     x_ind, y_ind = np.nonzero(n)
     output = scipy.sparse.dok_matrix(input_data.shape, dtype=float)
     for result in results:
-        if np.isnan(result):
+        if result.size == 0:
             continue
         else:
             output[x_ind, y_ind] += result[x_ind, y_ind]
