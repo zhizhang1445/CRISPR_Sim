@@ -54,7 +54,7 @@ def init_uniform(init_num, sim_params):
 
     iter_per_thread = np.array_split(np.arange(0, N), num_threads)
 
-    def add_Gaussian_noise(subset):
+    def add_Uniform_noise(subset):
         array = scipy.sparse.dok_matrix((tt_len_x, tt_len_y), dtype=int)
 
         for i in subset:
@@ -63,7 +63,7 @@ def init_uniform(init_num, sim_params):
             array[x_index, y_index] += 1
         return array
 
-    results = Parallel(n_jobs=num_threads)(delayed(add_Gaussian_noise)
+    results = Parallel(n_jobs=num_threads)(delayed(add_Uniform_noise)
             (subset) for subset in iter_per_thread)
     out = np.sum(results, axis=0)
 

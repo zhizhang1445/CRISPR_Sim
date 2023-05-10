@@ -8,7 +8,7 @@ from numpy.random import default_rng
 from concurrent.futures import as_completed
 import scipy
 
-def immunity_update_parallel(nh, n, params, sim_params):
+def immunity_update(nh, n, params, sim_params):
     Nh = params["Nh"]
     N = np.sum(n)
     num_threads = sim_params["num_threads"]

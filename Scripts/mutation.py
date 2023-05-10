@@ -78,15 +78,22 @@ def mutation(n, params, sim_params):
                     new_y_loc = (y_i + jump[1]).astype(int)
                     n_to_add[new_x_loc, new_y_loc] += 1
                 except IndexError: #Array Out of Bounds
+                    if new_x_loc < 0:
+                        new_x_loc = 0
+                    if new_y_loc < 0:
+                        new_y_loc = 0
+
                     if new_x_loc >= n.shape[0]:
                         new_x_loc = -1 #lmao this is gonna be a pain in cpp
                     if new_y_loc >= n.shape[1]:
                         new_y_loc = -1
+
                     n_to_add[new_x_loc, new_y_loc] += 1
         return n_to_add
 
     results = Parallel(n_jobs=num_threads)(delayed(mutation_single)(x_ind, y_ind) for x_ind, y_ind in zip(x_ind_subsets, y_ind_subsets))
-    # results = mutation_single(n_to_add, x_ind, y_ind)
+    # results = mutation_single(x_ind, y_ind)
+    # n = n+results
 
     n = n+np.sum(results, axis = 0)
     if checksum != np.sum(n):
