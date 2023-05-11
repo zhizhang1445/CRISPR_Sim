@@ -74,7 +74,7 @@ def virus_growth(n, f_sparse, params, sim_params): #TODO PARALLELIZE THIS
 
     mean = np.clip((1+f_dense*dt), a_min = 0, a_max=None)*n_dense
 
-    n_new = scipy.sparse.dok_matrix(n.shape)
+    n_new = scipy.sparse.dok_matrix(n.shape, dtype = int)
     n_new[x_ind, y_ind] = np.random.poisson(mean)
     return  n_new
 

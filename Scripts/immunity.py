@@ -24,7 +24,7 @@ def immunity_update(nh, n, params, sim_params):
 
     sample_flat_ind = np.random.choice(len(index_nonzero_w_repeats), num_to_remove,replace = False)
 
-    ind_per_thread_list = np.split(sample_flat_ind, num_threads)
+    ind_per_thread_list = np.array_split(sample_flat_ind, num_threads)
 
     def remove_points(flat_index):
         array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
