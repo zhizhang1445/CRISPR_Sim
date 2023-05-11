@@ -1,12 +1,11 @@
 import numpy as np
 import numpy.ma as ma
-import pandas as pd
+import scipy
 from scipy.ndimage import convolve
 from scipy import signal
 from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
 from concurrent.futures import as_completed
-import scipy
 
 def alpha(d, params): #This doesn't need to be sparsed
     dc = params["dc"]

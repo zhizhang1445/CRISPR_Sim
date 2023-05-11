@@ -1,12 +1,12 @@
 import numpy as np
 import numpy.ma as ma
-import pandas as pd
+import scipy
 from scipy.ndimage import convolve
 from scipy import signal
 from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
 from concurrent.futures import as_completed
-import scipy
+from supMethods import timeit
 
 def num_mutants_parallel(n, params, sim_params): #TODO PARALLELIZE THIS
     mu = params["mu"]
@@ -53,6 +53,7 @@ def mutation_jump(m, params, sim_params):
     jump = np.round(jump)
     return jump
 
+@timeit
 def mutation(n, params, sim_params):
     num_threads = sim_params["num_threads"]
     checksum = np.sum(n)

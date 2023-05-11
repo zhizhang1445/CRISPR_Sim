@@ -1,12 +1,12 @@
 import numpy as np
 import numpy.ma as ma
-import pandas as pd
+import scipy
 from scipy.ndimage import convolve
 from scipy import signal
 from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
 from concurrent.futures import as_completed
-import scipy
+from supMethods import timeit
 
 def square_split(array, split_size): #Find smallest matrix possible and make it I'm thinking 100x100
     if np.ndim(array) == 1:
@@ -39,8 +39,9 @@ def square_split(array, split_size): #Find smallest matrix possible and make it 
 
     # Create a list of starting indices for each subarray
     return subarrays, start_indices
-  
-def coverage_parrallel_convolution(nh, n, kernel, params, sim_params): #TODO This is already parallel, SPARSE THIS
+
+@timeit
+def split_coverage(nh, n, kernel, params, sim_params): #TODO This is already parallel, SPARSE THIS
     num_cores = sim_params["num_threads"]
     input_data = nh/params["Nh"]
     if scipy.sparse.issparse(nh):
@@ -81,7 +82,8 @@ def coverage_parrallel_convolution(nh, n, kernel, params, sim_params): #TODO Thi
 
     return output/params["M"]
 
-def coverage_sparse_parrallel(nh, n, kernel_quarter, params, sim_params):
+@timeit
+def elementwise_coverage(nh, n, kernel_quarter, params, sim_params):
     conv_size = sim_params["conv_size"]
     Nh = params["Nh"]
     M = params["M"]
