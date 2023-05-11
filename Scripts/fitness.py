@@ -77,3 +77,23 @@ def virus_growth(n, f_sparse, params, sim_params): #TODO PARALLELIZE THIS
     n_new = scipy.sparse.dok_matrix(n.shape)
     n_new[x_ind, y_ind] = np.random.poisson(mean)
     return  n_new
+
+def pred_value(params, sim_params):
+    erf = scipy.special.erf
+    var_nh = sim_params["initial_var_nh"]
+    r = params["r"]
+    const = np.exp(-var_nh**2/(2*np.power(r,2)))
+    neg_exp = lambda x: (1/2)*np.exp(-x/r)
+    pos_exp = lambda x: (1/2)*np.exp(x/r)
+
+    div_const = 1/(var_nh*np.sqrt(2))
+    erf_mean = var_nh**2/r
+    neg_erf = lambda x: erf(div_const*(x-erf_mean))
+    pos_erf = lambda x: erf(div_const*(x+erf_mean))
+
+    def anal_result(x):
+        return const*(neg_exp(x)*(neg_erf(x)+1)-pos_exp(x)*(pos_erf(x)-1))
+    
+    def anal_delay(x):
+        return anal_result(x-erf_mean)
+    return anal_delay
