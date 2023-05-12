@@ -58,6 +58,14 @@ def fitness_spacers(n, nh, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
     res[x_ind, y_ind] = np.log(R0*p_tt)
     return res
 
+def norm_fitness(f_sparse, n, params, sim_params):
+    f_avg = np.sum(f_sparse.multiply(n))/np.sum(n)
+
+    x_ind, y_ind = f_sparse.nonzero()
+    new_f = scipy.sparse.dok_matrix(f_sparse.shape, dtype=float)
+    new_f[x_ind, y_ind] = f_sparse[x_ind, y_ind].toarray() - f_avg
+    return new_f
+
 def virus_growth(n, f_sparse, params, sim_params): #TODO PARALLELIZE THIS
     dt = sim_params["dt"]
     x_ind, y_ind = n.nonzero()
