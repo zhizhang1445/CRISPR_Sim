@@ -3,6 +3,7 @@ import copy
 import matplotlib.pyplot as plt
 import scipy
 from joblib import Parallel, delayed
+from mutation import calc_diff_const
 
 def init_guassian(init_num, sim_params, type = "n"):
     x_range = sim_params["xdomain"] #Initialize the spaces
