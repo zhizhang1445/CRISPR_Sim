@@ -24,10 +24,10 @@ def makeGif(frame_stack, name):
     return 1
 
 def write2json(name, params, sim_params):
-    with open(name + '_params.json', 'w') as fp:
+    with open(name + 'params.json', 'w') as fp:
         json.dump(params, fp)
 
-    with open(name + '_sim_params.json', 'w') as fp:
+    with open(name + 'sim_params.json', 'w') as fp:
         json.dump(sim_params, fp)
 
 def time_conv(st):

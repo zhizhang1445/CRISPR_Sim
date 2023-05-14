@@ -5,6 +5,59 @@ import scipy
 from joblib import Parallel, delayed
 from mutation import calc_diff_const
 
+def fill_parameters(params, sim_params):
+    R0 = params["R0"]
+    M = params["M"]
+    N = params["N"]
+    Nh = params["Nh"]
+    r = params["r"]
+    v0 = 0
+    sigma = 0
+
+    params["D"] = D = calc_diff_const(params, sim_params)
+    inv_v_tau = (np.power(R0, 1/M)-1)/r
+    params["s"] = s = M*inv_v_tau
+    params["tau"] = tau = M*Nh/N
+
+    common_log = 24*np.log(N*np.power(D*np.power(s,2), 1/3))
+    sigma = np.power(D/s, 1/3)*np.power(common_log, 1/6)
+    v0 = np.power(s, 1/3)*np.power(D, 2/3)*np.power(common_log, 1/3)
+    uc = s*np.power(sigma, 4)/(4*D)
+
+    params["v0"] = v0
+    params["sigma"] = sigma
+    params["uc"] = uc    
+    return params, sim_params
+
+def init_cond(params, sim_params):
+    Nh = params["Nh"]
+    N0 = params["N0"]
+    params["N"] = N0
+
+    for i in range(100):
+        params, sim_params = fill_parameters(params, sim_params)
+        N0 = params["N"]
+        uc = params["uc"]
+        sigma = params["sigma"]
+        print(f"Phage Population: {N0:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}")
+
+        N = Nh*(params["s"]*params["v0"])
+        params["N"] = N
+        if np.abs(N0-N) <= 0.5:
+            params["N"] = int(N)
+            params, sim_params = fill_parameters(params, sim_params)
+            uc = params["uc"]
+            sigma = params["sigma"]
+            print(f"Phage Population: {N:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}")
+            break
+
+    uc = params["uc"]
+    sigma = params["sigma"]
+    sim_params["initial_var_n"] = sigma
+    sim_params["initial_var_nh"] = np.sqrt(np.power(sigma, 2) + np.power(uc, 2))
+    sim_params["initial_mean_n"] = [0, uc]
+    return params, sim_params
+
 def init_guassian(init_num, sim_params, type = "n"):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
@@ -73,16 +126,19 @@ def init_uniform(init_num, sim_params):
 def init_exptail(init_num, params, sim_params, type = "nh"):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
+    M = params["M"]
     N0 = init_num
     initial_position = sim_params["initial_mean_"+type]
     initial_var = sim_params["initial_var_"+type]
     num_threads = sim_params["num_threads"]
-    tau = params["M"]*params["Nh"]/params["N0"]
+    tau = params["tau"]
     v0 = params["v0"]
     axis = sim_params["tail_axis"]
 
-    x_linspace = np.arange(-x_range+initial_position[0], x_range+initial_position[0], dx)
-    y_linspace = np.arange(-x_range+initial_position[1], x_range+initial_position[1], dx)
+    x_linspace = np.arange(-x_range+initial_position[0], 
+                           x_range+initial_position[0], dx)
+    y_linspace = np.arange(-x_range+initial_position[1], 
+                           x_range+initial_position[1], dx)
     tt_len_x = len(x_linspace)
     tt_len_y = len(y_linspace)
 
@@ -90,15 +146,21 @@ def init_exptail(init_num, params, sim_params, type = "nh"):
     p_marg_y = np.exp(-y_linspace**2/(2*(initial_var**2)))
 
     if axis[0] == 0:
-        p_marg_x = np.exp(-x_linspace/(v0*tau))*np.heaviside(axis[1]*(x_linspace-initial_position[0]), 0)
+        const = M/(v0*tau)
+        p_marg_x = const*np.exp(-np.abs(x_linspace-initial_position[0])/(
+            v0*tau))*np.heaviside(axis[1]*(x_linspace-initial_position[0]), 0)
+        if np.sum(p_marg_x) < 0.99:
+            print(f"you should consider increasingxdomain: {np.sum(p_marg_x)}")
 
     if axis[0] == 1:
-        p_marg_y = np.exp(-y_linspace/(v0*tau))*np.heaviside(axis[1]*(y_linspace-initial_position[1]), 0)
+        const = M/(v0*tau)
+        p_marg_y = const*np.exp(-np.abs(y_linspace-initial_position[1])/(
+            v0*tau))*np.heaviside(axis[1]*(y_linspace-initial_position[1]), 0)
+        if np.sum(p_marg_y) < 0.99:
+            print(f"you should consider increasing ydomain: {np.sum(p_marg_y)}")
 
-
-    p_marg_x = p_marg_x/np.sum(p_marg_x)
     p_marg_y = p_marg_y/np.sum(p_marg_y) 
-
+    p_marg_x = p_marg_x/np.sum(p_marg_x)
     iter_per_thread = np.array_split(np.arange(0, N0), num_threads)
 
     def add_GaussianExptail_noise(subset):
@@ -112,6 +174,7 @@ def init_exptail(init_num, params, sim_params, type = "nh"):
 
     results = Parallel(n_jobs=num_threads)(delayed(add_GaussianExptail_noise)
             (subset) for subset in iter_per_thread)
+    # results = add_GaussianExptail_noise(np.arrange(0, N0))
     out = np.sum(results, axis=0)
 
     return out

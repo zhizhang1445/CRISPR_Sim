@@ -70,10 +70,10 @@ def readParameters(fileNameString, typeParams = True):
         return sim_params
 
 def write2json(prefixName, params, sim_params):
-    with open(prefixName + '_params.json', 'w') as fp:
+    with open(prefixName + 'params.json', 'w') as fp:
         json.dump(params, fp)
 
-    with open(prefixName + '_sim_params.json', 'w') as fp:
+    with open(prefixName + 'sim_params.json', 'w') as fp:
         json.dump(sim_params, fp)
 
 def main(start_time=0, end_time=1000000):
