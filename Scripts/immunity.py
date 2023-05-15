@@ -14,7 +14,7 @@ def immunity_update(nh, n, params, sim_params):
     N = np.sum(n)
     num_threads = sim_params["num_threads"]
     nh = nh + n
-    num_to_remove = np.sum(nh) - Nh
+    num_to_remove = int(np.sum(nh) - Nh)
 
     nonzero_indices = np.nonzero(nh)
     nonzero_values = [nh[index] for index in zip(*nonzero_indices)]
