@@ -40,7 +40,10 @@ def init_cond(params, sim_params):
         uc = params["uc"]
         sigma = params["sigma"]
         print(f"Phage Population: {N0:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}")
-
+        
+        if np.isnan(uc) or np.isnan(sigma):
+            raise(ValueError("You need >10E6 Nh or >10E3 N0"))
+        
         N = Nh*(params["s"]*params["v0"])
         params["N"] = N
         if np.abs(N0-N) <= 0.5:
@@ -55,7 +58,6 @@ def init_cond(params, sim_params):
     sigma = params["sigma"]
     sim_params["initial_var_n"] = sigma
     sim_params["initial_var_nh"] = np.sqrt(np.power(sigma, 2) + np.power(uc, 2))
-    sim_params["initial_mean_n"] = [0, uc]
     return params, sim_params
 
 def init_guassian(init_num, sim_params, type = "n"):
