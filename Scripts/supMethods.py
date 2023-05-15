@@ -9,19 +9,19 @@ import json
 import time
 from functools import wraps
 
-def makeGif(frame_stack, name):
+def create_frame(foldername, i, margins = (-0.45, -0.45), name = "test_img"):
+    n_i = scipy.sparse.load_npz(foldername+f"sp_frame_n{i}.npz")
+    nh_i = scipy.sparse.load_npz(foldername+f"sp_frame_nh{i}.npz")
+
     fig = plt.figure()
-
-    animation_frames = []
-    for frame in frame_stack:
-        frame = np.squeeze(frame)
-        animation_frames.append([plt.imshow(frame, animated=True)])
-
-    ani = animation.ArtistAnimation(
-        fig, animation_frames, interval=50, blit=True, repeat_delay=1000)
-    ani.save(name + ".gif")
+    plt.contour(n_i.toarray(), cmap = "Reds")
+    plt.contour(nh_i.toarray(), cmap = "Blues")
+    plt.margins(margins[0], margins[1])
+    
+    plt.title(f"N and Nh distribution at timestep {i}")
+    plt.savefig(f'./{name}/img_{i}.png', transparent = False,  
+            facecolor = 'white')
     plt.close()
-    return 1
 
 def write2json(name, params, sim_params):
     with open(name + 'params.json', 'w') as fp:
@@ -43,3 +43,19 @@ def timeit(func):
         print(f'{func.__name__} took {time_conv(total_time)}')
         return result
     return timeit_wrapper
+
+def minmax_norm(array):
+    max_val = array.max()
+    min_val = array.min()
+    res = (array - min_val)/np.ptp(array)
+    return res
+
+def makeGif(animation_frame_stack, name): #no longer used
+    raise(NotImplementedError)
+#     fig = plt.figure()
+
+#     ani = animation.ArtistAnimation(
+#         fig, animation_frame_stack, interval=50, blit=True, repeat_delay=1000)
+#     ani.save(name + ".gif")
+#     plt.close()
+#     return 1
