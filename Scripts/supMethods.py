@@ -8,6 +8,11 @@ import scipy
 import json
 import time
 from functools import wraps
+import matplotlib.colors as mcolors
+
+def generate_colors(num_colors):
+    all_colors = list(mcolors.CSS4_COLORS.keys())
+    return all_colors[:num_colors]
 
 def create_frame(foldername, i, margins = (-0.45, -0.45), name = "test_img"):
     n_i = scipy.sparse.load_npz(foldername+f"sp_frame_n{i}.npz")
@@ -59,3 +64,17 @@ def makeGif(animation_frame_stack, name): #no longer used
 #     ani.save(name + ".gif")
 #     plt.close()
 #     return 1
+
+def extract_xy(list):
+    try:
+        A = np.array(list).squeeze()
+        x_val = A[:,0]
+        y_val = A[:,1]
+    except TypeError:
+        x_val = np.zeros(len(list))
+        y_val = np.zeros(len(list))
+        for x, y, item in zip(x_val, y_val, list):
+            x = item[0]
+            y = item[1]
+
+    return x_val, y_val
