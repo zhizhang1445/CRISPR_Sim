@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from sklearn.mixture import BayesianGaussianMixture, GaussianMixture
+from trajectoryVisual import make_ellipse
 
 def get_nonzero_w_repeats(n_i):
     x_ind, y_ind = np.nonzero(n_i)
@@ -14,41 +15,27 @@ def get_nonzero_w_repeats(n_i):
             index_nonzero_w_repeats.append(index)
     return index_nonzero_w_repeats
 
-def make_ellipse(means, covariances, color = "navy"):
-    if isinstance(covariances,float):
-        covariances = np.eye(means.size)*covariances
-
-    v, w = np.linalg.eigh(covariances)
-    u = w[0] / np.linalg.norm(w[0])
-    angle = np.arctan2(u[1], u[0])
-    angle = 180 * angle / np.pi  # convert to degrees
-    v = 2.0 * np.sqrt(2.0) * np.sqrt(v)
-    ell = mpl.patches.Ellipse(
-        means, v[0], v[1], 180 + angle, color=color
-    )
-    return ell
-
-def checkIfInEllipse(mean1, mean2, cov1, r = 1) -> bool:
+def checkIfInEllipse(mean1, mean2, cov1, scale = 1) -> bool:
     eigval, eigvec = np.linalg.eigh(cov1)
     # dist = np.linalg.norm(mean1-mean2)
     diff_in_eigev = np.matmul(eigvec, mean1-mean2)
 
     norm_dist = np.linalg.norm(diff_in_eigev/eigval)
     
-    if norm_dist <= np.power(r, 2):
+    if norm_dist <= np.power(scale, 2):
         return True
 
-def fit_unknown_GMM(index_nonzero_w_repeats, cov_type = "full",
-                     n_components = 10, w = 1/10):
+def fit_unknown_GMM(index_nonzero_w_repeats,
+                     n_components = 10, w = 10):
 
     gaussian_estimator =  BayesianGaussianMixture(
-                weight_concentration_prior_type="dirichlet_process",
+                weight_concentration_prior_type="dirichlet_distribution",
                 n_components = 2*n_components,
                 reg_covar = 0,
-                init_params="k-means++",
-                max_iter = 1500,
-                mean_precision_prior = 0.3,
-                covariance_type = cov_type,
+                init_params="kmeans",
+                max_iter = 2000,
+                mean_precision_prior = 0.8,
+                covariance_type = "full",
                 weight_concentration_prior = w,
                 warm_start = True
             )
@@ -78,7 +65,7 @@ def find_redudant(means, covs, counts):
             avg_cov = (covs[i]*counts[i]+covs[j]*counts[j])
             avg_cov = avg_cov/(counts[i]+counts[j])
 
-            if checkIfInEllipse(means[i], means[j], avg_cov):
+            if checkIfInEllipse(means[i], means[j], avg_cov, np.sqrt(2)):
                 true_count[i] += true_count[j]
                 true_count[j] = 0
                 to_join[i].extend(to_join[j])
@@ -113,25 +100,59 @@ def reduce_GMM(means, covs, counts):
 
     return reduced_means, reduced_covs, reduced_counts
 
-def find_links(means1, covs1, means2):
-    to_join = [[] for i in range(len(means1))]
-    to_remove = [i for i in range(len(means2))]
-    dist_array = np.zeros((len(means1), len(means2)))
+def Multivar_Normal(x, mean, cov, count):
+    diff = x-mean
+    Mahalanobis = np.matmul(diff.transpose(), np.matmul(cov, diff))
+    pdf = np.exp((-1/2)*Mahalanobis)
+    norm = np.sqrt(np.power(2*np.pi, 2)*np.linalg.det(cov))
+    pdf = pdf/norm
+    return pdf*count
 
-    for i in range(len(means1)):
-        for j in range(len(means2)):
-            dist_array[i, j] = np.linalg.norm(means1[i]-means2[j])
+def Sum_Normal(n, means, covs, counts):
+    sum_Normal = scipy.sparse.dok_matrix(n.shape)
+    x_inds, y_inds = n.nonzero()
 
-    while len(to_remove) != 0:
-        num_iter = 0
-        for i in range(len(means1)):
-            min_j = np.argmin(dist_array)
-
-            if min_j in to_remove and num_iter < 10:
-                if checkIfInEllipse(means1[i], means2[min_j], covs1[i]):
-                    to_join[i].append(min_j)
-                    to_remove.remove(min_j)
-        num_iter += 1
+    for mean, cov, count in zip(means, covs, counts):
+        for x_ind, y_ind in zip(x_inds, y_inds):
+            sum_Normal[x_ind, y_ind] += Multivar_Normal([x_ind, y_ind], 
+                                                    mean, cov, count)
+        return sum_Normal
     
-    return to_join
+    return sum_Normal
+
+def fit_GMM(n, index_nonzero_w_repeats, cov_type = "full",
+                     n_components = 10):
+
+    gaussian_estimator =  GaussianMixture(
+                n_components= n_components,
+                reg_covar=0,
+                init_params="k-means++",
+                max_iter=1500,
+                covariance_type = cov_type,
+            )
+    gaussian_estimator.fit(index_nonzero_w_repeats)
+
+    covs = gaussian_estimator.covariances_
+    means = gaussian_estimator.means_
+    clusters = gaussian_estimator.predict(index_nonzero_w_repeats)
+
+    _ , counts = np.unique(clusters, return_counts= True)
+
+    calc_data = Sum_Normal(n, means, covs, counts)
+    x_inds, y_inds = n.nonzero()
+    classification = gaussian_estimator.predict(np.array([x_inds, y_inds]).transpose())
+
+    chi_sqr = 0
+    for x_ind, y_ind, i in zip(x_inds, y_inds, classification):
+        diff = n[x_ind, y_ind] - calc_data[x_ind, y_ind]
+        variance = np.linalg.det(covs[i])
+
+        chi_sqr += np.power(diff, 2)/variance
+
+    deg_freedom = n_components*5
+
+    red_chi_sqr = chi_sqr/deg_freedom
+    print("Reduced ChiSqrd: ", red_chi_sqr)
+
+    return red_chi_sqr, means, covs, counts
 

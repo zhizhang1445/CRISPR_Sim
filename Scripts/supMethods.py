@@ -9,30 +9,13 @@ import json
 import time
 from functools import wraps
 import matplotlib.colors as mcolors
-
-def generate_colors(num_colors):
-    all_colors = list(mcolors.CSS4_COLORS.keys())
-    return all_colors[:num_colors]
-
-def create_frame(foldername, i, margins = (-0.45, -0.45), name = "test_img"):
-    n_i = scipy.sparse.load_npz(foldername+f"sp_frame_n{i}.npz")
-    nh_i = scipy.sparse.load_npz(foldername+f"sp_frame_nh{i}.npz")
-
-    fig = plt.figure()
-    plt.contour(n_i.toarray(), cmap = "Reds")
-    plt.contour(nh_i.toarray(), cmap = "Blues")
-    plt.margins(margins[0], margins[1])
-    
-    plt.title(f"N and Nh distribution at timestep {i}")
-    plt.savefig(f'./{name}/img_{i}.png', transparent = False,  
-            facecolor = 'white')
-    plt.close()
+from mutation import calc_diff_const
 
 def write2json(name, params, sim_params):
-    with open(name + 'params.json', 'w') as fp:
+    with open(name + '/params.json', 'w') as fp:
         json.dump(params, fp)
 
-    with open(name + 'sim_params.json', 'w') as fp:
+    with open(name + '/sim_params.json', 'w') as fp:
         json.dump(sim_params, fp)
 
 def time_conv(st):
@@ -55,16 +38,6 @@ def minmax_norm(array):
     res = (array - min_val)/np.ptp(array)
     return res
 
-def makeGif(animation_frame_stack, name): #no longer used
-    raise(NotImplementedError)
-#     fig = plt.figure()
-
-#     ani = animation.ArtistAnimation(
-#         fig, animation_frame_stack, interval=50, blit=True, repeat_delay=1000)
-#     ani.save(name + ".gif")
-#     plt.close()
-#     return 1
-
 def extract_xy(list):
     try:
         A = np.array(list).squeeze()
@@ -78,3 +51,16 @@ def extract_xy(list):
             y = item[1]
 
     return x_val, y_val
+
+def calculate_velocity(N, params, sim_params):
+    R0 = params["R0"]
+    M = params["M"]
+    r = params["r"]
+
+    D = calc_diff_const(params, sim_params)
+    inv_v_tau = (np.power(R0, 1/M)-1)/r
+    s = M*inv_v_tau
+
+    common_log = 24*np.log(N*np.power(D*np.power(s,2), 1/3))
+    v = np.power(s, 1/3)*np.power(D, 2/3)*np.power(common_log, 1/3)
+    return v
