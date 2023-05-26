@@ -40,9 +40,19 @@ def minmax_norm(array):
 
 def extract_xy(list):
     try:
-        A = np.array(list).squeeze()
-        x_val = A[:,0]
-        y_val = A[:,1]
+        if len(list) == 0:
+            x_val = y_val = []
+
+        elif len(list) == 1:
+            A = np.array(list).squeeze()
+            x_val = A[0]
+            y_val = A[1]
+            
+        else:
+            A = np.array(list).squeeze()
+            x_val = A[:,0]
+            y_val = A[:,1]
+
     except TypeError:
         x_val = np.zeros(len(list))
         y_val = np.zeros(len(list))
@@ -64,3 +74,10 @@ def calculate_velocity(N, params, sim_params):
     common_log = 24*np.log(N*np.power(D*np.power(s,2), 1/3))
     v = np.power(s, 1/3)*np.power(D, 2/3)*np.power(common_log, 1/3)
     return v
+
+def running_median_filter(signal, window_size, padding = 'symmetric'):
+    pad_width = window_size // 2
+    padded_signal = np.pad(signal, pad_width, mode=padding)
+    filtered_signal = scipy.signal.medfilt(padded_signal, kernel_size=window_size)
+    trimmed_signal = filtered_signal[pad_width:-pad_width]
+    return trimmed_signal
