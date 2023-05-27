@@ -5,6 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from sklearn.mixture import BayesianGaussianMixture, GaussianMixture
 from trajectoryVisual import make_ellipse
+from mutation import calc_diff_const
 
 def get_nonzero_w_repeats(n_i):
     x_ind, y_ind = np.nonzero(n_i)
@@ -54,7 +55,7 @@ def fit_unknown_GMM(index_nonzero_w_repeats,
     _ , counts = np.unique(clusters, return_counts= True)
     return means_red, covs_red, counts
 
-def find_redudant(means, covs, counts):
+def find_redudant(means, covs, counts, scale = np.sqrt(2)):
     true_count = np.copy(counts)
     to_join = [[i] for i in range(len(counts))]
 
@@ -65,15 +66,16 @@ def find_redudant(means, covs, counts):
             avg_cov = (covs[i]*counts[i]+covs[j]*counts[j])
             avg_cov = avg_cov/(counts[i]+counts[j])
 
-            if checkIfInEllipse(means[i], means[j], avg_cov, np.sqrt(2)):
+            if checkIfInEllipse(means[i], means[j], avg_cov, 
+                                scale = scale):
                 true_count[i] += true_count[j]
                 true_count[j] = 0
                 to_join[i].extend(to_join[j])
                 to_join[j] = []
     return to_join, true_count
 
-def reduce_GMM(means, covs, counts):
-    to_join, true_count = find_redudant(means, covs, counts)
+def reduce_GMM(means, covs, counts, scale = np.sqrt(2)):
+    to_join, true_count = find_redudant(means, covs, counts, scale)
 
     reduced_means = []
     reduced_covs = []
@@ -156,3 +158,22 @@ def fit_GMM(n, index_nonzero_w_repeats, cov_type = "full",
 
     return red_chi_sqr, means, covs, counts
 
+def calculate_velocity(N, params, sim_params):
+    R0 = params["R0"]
+    M = params["M"]
+    r = params["r"]
+
+    D = calc_diff_const(params, sim_params)
+    inv_v_tau = (np.power(R0, 1/M)-1)/r
+    s = M*inv_v_tau
+
+    common_log = 24*np.log(N*np.power(D*np.power(s,2), 1/3))
+    v = np.power(s, 1/3)*np.power(D, 2/3)*np.power(common_log, 1/3)
+    return v
+
+def running_median_filter(signal, window_size, padding = 'symmetric'):
+    pad_width = window_size // 2
+    padded_signal = np.pad(signal, pad_width, mode=padding)
+    filtered_signal = scipy.signal.medfilt(padded_signal, kernel_size=window_size)
+    trimmed_signal = filtered_signal[pad_width:-pad_width]
+    return trimmed_signal
