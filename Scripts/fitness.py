@@ -42,10 +42,14 @@ def fitness_spacers(n, nh, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
     R0 = params["R0"]
     Nh = params["Nh"]
     M = params["M"]
+    res = scipy.sparse.dok_matrix(n.shape, dtype=float)
 
     x_ind, y_ind = np.nonzero(p_sparse) #also == np.nonzero(n)
     p_dense = np.array(p_sparse[x_ind, y_ind].todense()).squeeze()
 
+    if np.sum(p_dense) == 0:
+        raise ValueError("Zero spacer probability")
+    
     p_0_spacer = p_zero_spacer(p_dense, params, sim_params)
     p_1_spacer = p_single_spacer(p_dense, params, sim_params)
     p_tt = p_0_spacer + p_1_spacer

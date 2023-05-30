@@ -27,11 +27,11 @@ def checkIfInEllipse(mean1, mean2, cov1, scale = 1) -> bool:
         return True
 
 def fit_unknown_GMM(index_nonzero_w_repeats,
-                     n_components = 10, w = 10):
+                     n_components = 20, w = 10, reg_covar = 0):
 
     gaussian_estimator =  BayesianGaussianMixture(
                 weight_concentration_prior_type="dirichlet_distribution",
-                n_components = 2*n_components,
+                n_components = n_components,
                 reg_covar = 0,
                 init_params="kmeans",
                 max_iter = 2000,
