@@ -133,27 +133,29 @@ def find_max_value_location(matrix):
 
 def immunity_mean_field(nh, n, params, sim_params):
     Nh = params["Nh"]
-    num_threads = sim_params["num_threads"]
-    nh_temp = nh + n
-    total_number = np.sum(nh_temp)
+    nh = nh + n
+    total_number = np.sum(nh)
     num_to_remove = int(total_number - Nh)
     ratio = 1-(num_to_remove/total_number)
 
-    nh = int(nh_temp*ratio)
+    nh_new = scipy.sparse.dok_matrix(nh.shape)
+    for (row, col), value in nh.items():
+        nh_new[row, col] = int(np.rint(value*ratio))
 
-    new_tt_number = np.sum(nh)
+    new_tt_number = np.sum(nh_new)
     error = int(Nh - new_tt_number)
+    # print(error)
     
-    x_max, y_max = find_max_value_location(nh_temp)
-    nh[x_max, y_max] += error
+    x_max, y_max = find_max_value_location(nh)
+    nh_new[x_max, y_max] += error
 
 
-    if np.sum(nh) != Nh:
+    if np.sum(nh_new) != Nh:
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     
-    min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
+    min_val = np.min(nh_new.tocoo()) if (scipy.sparse.issparse(nh_new)) else np.min(nh_new)
 
     if min_val < 0:
         raise ValueError("bacteria population is negative")
 
-    return nh
+    return nh_new
