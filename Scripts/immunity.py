@@ -118,3 +118,42 @@ def immunity_update_split_choice(nh, n, params, sim_params):
         raise ValueError("bacteria population is negative")
 
     return nh
+
+def find_max_value_location(matrix):
+    max_value = float('-inf')
+    max_row, max_col = None, None
+
+    for (row, col), value in matrix.items():
+        if value > max_value:
+            max_value = value
+            max_row = row
+            max_col = col
+
+    return max_row, max_col
+
+def immunity_mean_field(nh, n, params, sim_params):
+    Nh = params["Nh"]
+    num_threads = sim_params["num_threads"]
+    nh_temp = nh + n
+    total_number = np.sum(nh_temp)
+    num_to_remove = int(total_number - Nh)
+    ratio = 1-(num_to_remove/total_number)
+
+    nh = int(nh_temp*ratio)
+
+    new_tt_number = np.sum(nh)
+    error = int(Nh - new_tt_number)
+    
+    x_max, y_max = find_max_value_location(nh_temp)
+    nh[x_max, y_max] += error
+
+
+    if np.sum(nh) != Nh:
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
+    
+    min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
+
+    if min_val < 0:
+        raise ValueError("bacteria population is negative")
+
+    return nh
