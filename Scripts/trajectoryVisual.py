@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-from trajectory import get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
+# from trajectory import get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
 import imageio
 import os
 
@@ -90,19 +90,19 @@ def make_Gif(foldername, tdomain, typename = "time_plots"):
 
     imageio.mimsave(f'./{foldername+"_"+typename}.gif', frames, fps = 15)
 
-def make_timeGif(foldername, t_domain):
-    for t in t_domain:
-        make_frame(foldername, t, save = True)
+# def make_timeGif(foldername, t_domain):
+#     for t in t_domain:
+#         make_frame(foldername, t, save = True)
 
-    make_Gif(foldername, t_domain, typename = "time_plots")
+#     make_Gif(foldername, t_domain, typename = "time_plots")
 
-def make_GMMGif(foldername, t_domain):
-    for t in t_domain:
-        n_i = scipy.sparse.load_npz(foldername+f"/sp_frame_n{t}.npz").todok()
-        indexes = get_nonzero_w_repeats(n_i)
-        means_gmm, covs_gmm, counts_gmm = fit_unknown_GMM(indexes,n_components=1, w = 1000, reg_covar=1e4)
-        means, covs, counts = reduce_GMM(means_gmm, covs_gmm, counts_gmm)
-        plot_Ellipses(n_i, t, means, covs, save = True,
-                    foldername = foldername, input_color = "teal")
+# def make_GMMGif(foldername, t_domain):
+#     for t in t_domain:
+#         n_i = scipy.sparse.load_npz(foldername+f"/sp_frame_n{t}.npz").todok()
+#         indexes = get_nonzero_w_repeats(n_i)
+#         means_gmm, covs_gmm, counts_gmm = fit_unknown_GMM(indexes,n_components=1, w = 1000, reg_covar=1e4)
+#         means, covs, counts = reduce_GMM(means_gmm, covs_gmm, counts_gmm)
+#         plot_Ellipses(n_i, t, means, covs, save = True,
+#                     foldername = foldername, input_color = "teal")
         
-    make_Gif(foldername, t_domain, typename = "GMM_plots")
+#     make_Gif(foldername, t_domain, typename = "GMM_plots")
