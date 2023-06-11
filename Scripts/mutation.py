@@ -100,35 +100,3 @@ def mutation(n, params, sim_params):
     if checksum != np.sum(n):
         raise ValueError("Cries cuz Bacteria died during mutation")
     return n
-
-def calc_diff_const(params, sim_params):
-    dx = sim_params["dx"]
-    shape = params["gamma_shape"]
-    mu = params["mu"]
-
-    mean = 2*dx
-    scale = mean/shape
-    gamma_var = shape*(scale**2)
-    cos_uni_var = 1/2
-    prod_var = (mean**2 + gamma_var)*(cos_uni_var)
-
-    diff_const = mu*prod_var/2
-    return diff_const
-
-
-def guassian_diffusion(xspace, yspace, t, params, sim_params):
-    nh_var = sim_params["initial_var_n"]
-    diff_const = calc_diff_const(params, sim_params)
-    a = 1/(2*nh_var**2)
-    b = 1/(4*diff_const*t)
-
-    c = (1/a +1/b)
-
-    coordmap = np.array(np.meshgrid(xspace, yspace)).squeeze()
-    rsqrd = (coordmap[0]**2 + coordmap[1]**2)
-
-    func = np.exp(-rsqrd/c)
-    func = (func/np.sum(func))
-    print("Diffusion Constant: ", diff_const)
-    print("Current Normal Variance: ", np.sqrt(c/2))
-    return func

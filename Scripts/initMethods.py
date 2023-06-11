@@ -3,7 +3,7 @@ import copy
 import matplotlib.pyplot as plt
 import scipy
 from joblib import Parallel, delayed
-from mutation import calc_diff_const
+from formulas import calc_diff_const
 
 def fill_parameters(params, sim_params):
     R0 = params["R0"]
@@ -181,18 +181,32 @@ def init_exptail(init_num, params, sim_params, type = "nh"):
 
     return out
 
-def init_quarter_kernel(params, sim_params): #Kernel is not parrallel
-    kernel = params["r"]
+def init_quarter_kernel(params, sim_params, type = "Radius", exponent = 1): #Kernel is not parrallel
+    if type == "Radius" or type == "r":
+        kernel = 1/params["r"]
+    elif type == "Boltzmann" or type == "beta":
+        kernel = params["beta"]
+    else:
+        raise NotImplementedError
+    
     conv_ker_size = sim_params["conv_size"]
 
     x_linspace = np.arange(0, conv_ker_size, 1)
     coordmap = np.array(np.meshgrid(x_linspace, x_linspace)).squeeze()
 
     radius = np.sqrt(np.sum((coordmap)**2, axis=0))
-    matrix_ker = np.exp(-radius/kernel)
+    exp_radius = np.power(radius, exponent)
+    matrix_ker = np.exp(-exp_radius*kernel)
     return matrix_ker
 
-def init_full_kernel(params, sim_params): #Kernel is all four quadrants
+def init_full_kernel(params, sim_params, type = "coverage", exponent = 1): #Kernel is all four quadrants
+    if type == "coverage":
+        kernel = 1./params["r"]
+    elif type == "Boltzmann":
+        kernel = params["beta"]
+    else:
+        raise NotImplementedError
+    
     kernel = params["r"]
     conv_ker_size = sim_params["conv_size"]
 
@@ -200,5 +214,6 @@ def init_full_kernel(params, sim_params): #Kernel is all four quadrants
     coordmap = np.array(np.meshgrid(x_linspace, x_linspace)).squeeze()
 
     radius = np.sqrt(np.sum((coordmap)**2, axis=0))
-    matrix_ker = np.exp(-radius/kernel)
+    exp_radius = np.power(radius, exponent)
+    matrix_ker = np.exp(-exp_radius*kernel)
     return matrix_ker

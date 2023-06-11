@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
-# from trajectory import get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
 import imageio
 import os
 

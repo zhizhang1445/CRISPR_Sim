@@ -8,58 +8,9 @@ from numpy.random import default_rng
 from concurrent.futures import as_completed
 from supMethods import timeit
 
+
 @timeit
 def immunity_update(nh, n, params, sim_params):
-    Nh = params["Nh"]
-    num_threads = sim_params["num_threads"]
-    nh = nh + n
-    num_to_remove = int(np.sum(nh) - Nh)
-
-    nonzero_indices = np.transpose(nh.nonzero())
-    nonzero_indices_subset = np.array_split(nonzero_indices, num_threads, axis=0)
-    nonzero_values = nh[nonzero_indices[:, 0], nonzero_indices[:, 1]].toarray().squeeze()
-    nonzero_values_subset = np.array_split(nonzero_values, num_threads, axis=0)
-
-    def process_value(values, indexes):
-        index_nonzero_w_repeats = []
-        for value, index in zip(values, indexes):
-            index_nonzero_w_repeats.extend([index for _ in range(int(value))])
-        return index_nonzero_w_repeats
-
-    results = Parallel(n_jobs=num_threads)(delayed(process_value)(values, indexes)
-                                for values, indexes in zip(nonzero_values_subset, nonzero_indices_subset))
-
-    index_nonzero_w_repeats = []
-    for sublist in results:
-        index_nonzero_w_repeats.extend(sublist)
-
-    sample_flat_ind = np.random.choice(len(index_nonzero_w_repeats), num_to_remove,replace = False)
-    ind_per_thread_list = np.array_split(sample_flat_ind, num_threads)
-
-    def remove_points(flat_index):
-        array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
-        sample_ind = [index_nonzero_w_repeats[i] for i in flat_index]
-        for x,y in sample_ind:
-            array[x, y] -= 1
-
-        return array
-
-    results = Parallel(n_jobs=num_threads)(
-        delayed(remove_points)(flat_index) for flat_index in ind_per_thread_list)
-    nh = nh + np.sum(results, axis=0)
-
-    if np.sum(nh) != Nh:
-        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
-    
-    min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
-
-    if min_val < 0:
-        raise ValueError("bacteria population is negative")
-
-    return nh
-
-@timeit
-def immunity_update_split_choice(nh, n, params, sim_params):
     Nh = params["Nh"]
     num_threads = sim_params["num_threads"]
     nh = nh + n
@@ -119,17 +70,6 @@ def immunity_update_split_choice(nh, n, params, sim_params):
 
     return nh
 
-def find_max_value_location(matrix):
-    max_value = float('-inf')
-    max_row, max_col = None, None
-
-    for (row, col), value in matrix.items():
-        if value > max_value:
-            max_value = value
-            max_row = row
-            max_col = col
-
-    return max_row, max_col
 
 def immunity_mean_field(nh, n, params, sim_params):
     Nh = params["Nh"]
@@ -158,4 +98,55 @@ def immunity_mean_field(nh, n, params, sim_params):
     if min_val < 0:
         raise ValueError("bacteria population is negative")
 
-    return nh_new
+    return nh
+
+@timeit
+def immunity_update_SerialChoice(nh, n, params, sim_params):
+    Nh = params["Nh"]
+    num_threads = sim_params["num_threads"]
+    nh = nh + n
+    num_to_remove = int(np.sum(nh) - Nh)
+
+    nonzero_indices = np.transpose(nh.nonzero())
+    nonzero_indices_subset = np.array_split(nonzero_indices, num_threads, axis=0)
+    nonzero_values = nh[nonzero_indices[:, 0], nonzero_indices[:, 1]].toarray().squeeze()
+    nonzero_values_subset = np.array_split(nonzero_values, num_threads, axis=0)
+
+    def process_value(values, indexes):
+        index_nonzero_w_repeats = []
+        for value, index in zip(values, indexes):
+            index_nonzero_w_repeats.extend([index for _ in range(int(value))])
+        return index_nonzero_w_repeats
+
+    results = Parallel(n_jobs=num_threads)(delayed(process_value)(values, indexes)
+                                for values, indexes in zip(nonzero_values_subset, nonzero_indices_subset))
+
+    index_nonzero_w_repeats = []
+    for sublist in results:
+        index_nonzero_w_repeats.extend(sublist)
+
+    sample_flat_ind = np.random.choice(len(index_nonzero_w_repeats), num_to_remove,replace = False)
+    ind_per_thread_list = np.array_split(sample_flat_ind, num_threads)
+
+    def remove_points(flat_index):
+        array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
+        sample_ind = [index_nonzero_w_repeats[i] for i in flat_index]
+        for x,y in sample_ind:
+            array[x, y] -= 1
+
+        return array
+
+    results = Parallel(n_jobs=num_threads)(
+        delayed(remove_points)(flat_index) for flat_index in ind_per_thread_list)
+    nh = nh + np.sum(results, axis=0)
+
+    if np.sum(nh) != Nh:
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
+    
+    min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
+
+    if min_val < 0:
+        raise ValueError("bacteria population is negative")
+
+    return nh
+_new
