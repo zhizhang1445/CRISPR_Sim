@@ -7,6 +7,7 @@ from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
 from concurrent.futures import as_completed
 from supMethods import timeit
+from formulas import find_max_value_location
 
 
 @timeit
@@ -149,4 +150,3 @@ def immunity_update_SerialChoice(nh, n, params, sim_params):
         raise ValueError("bacteria population is negative")
 
     return nh
-_new

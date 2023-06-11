@@ -108,7 +108,7 @@ def immunity_loss_uniform(nh_intergrated, n, params, sim_params):
     nh_new = nh_intergrated + np.sum(results, axis=0)
 
     if np.sum(nh_new) != Nh:
-        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new))
     
     if(scipy.sparse.issparse(nh_new)):
             min_val = np.min(nh_new.tocoo()) 
