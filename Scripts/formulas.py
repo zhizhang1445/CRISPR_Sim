@@ -23,11 +23,11 @@ def calculate_velocity(N, params, sim_params):
     inv_v_tau = (np.power(R0, 1/M)-1)/r
     s = M*inv_v_tau
 
-    common_log = np.log(N*np.power(D, 1/3))
+    common_log = 24*np.log(N*np.power(D*np.power(s, 2), 1/3))
     v = np.power(s, 1/3)*np.power(D, 2/3)*np.power(common_log, 1/3)
     return v
 
-def calculate_IFvelocity(N, params, sim_params):
+def calculate_DlnND(N, params, sim_params):
     R0 = params["R0"]
     M = params["M"]
     r = params["r"]
@@ -36,7 +36,7 @@ def calculate_IFvelocity(N, params, sim_params):
     inv_v_tau = (np.power(R0, 1/M)-1)/r
     s = M*inv_v_tau
 
-    common_log = np.log(N*np.power(D, 1/3))
+    common_log = np.log(N*np.power(D*np.power(s, 2), 1/3))
     v = np.power(D, 2/3)*np.power(common_log, 1/3)
     return v
 
