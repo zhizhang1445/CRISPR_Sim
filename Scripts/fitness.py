@@ -5,6 +5,7 @@ from scipy.ndimage import convolve
 from scipy import signal
 from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
+from supMethods import timeit
 from concurrent.futures import as_completed
 
 def alpha(d, params): #This doesn't need to be sparsed
@@ -38,6 +39,7 @@ def p_single_spacer(p_dense, params, sim_params): #TODO Sparsed in Theory
         p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-alpha(d, params))
     return p_shared
 
+@timeit
 def fitness_spacers(n, nh, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
     R0 = params["R0"]
     Nh = params["Nh"]
