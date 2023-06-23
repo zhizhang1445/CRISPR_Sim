@@ -71,7 +71,7 @@ def immunity_update(nh, n, params, sim_params):
 
     return nh
 
-
+@timeit
 def immunity_mean_field(nh, n, params, sim_params):
     Nh = params["Nh"]
     nh = nh + n
