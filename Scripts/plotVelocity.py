@@ -77,7 +77,7 @@ def plot_velocity(foldername_itr, limits = [0.07, 0.07]):
         v_Fisher_mean.append(np.mean(velocity_Fisher))
         v_Fisher_var.append(np.sqrt(np.var(velocity_Fisher)))
 
-    plt.figure(figsize = [5,5])
+    plt.figure(figsize = [3,3])
     plt.errorbar(v_calc_mean, v_obs_mean, xerr= v_calc_var,
                 yerr = v_obs_var, linestyle = "None", capsize = 1)
     # plt.scatter(population_mean, velocity_mean)
