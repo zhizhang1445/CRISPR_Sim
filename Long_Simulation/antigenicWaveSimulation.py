@@ -67,8 +67,8 @@ kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
 for t in range(sim_params["tf"]):
 
     if t%sim_params["t_snapshot"] == 0:
-        sparse.save_npz(foldername+f"/sp_frame_n{i}",n.tocoo())
-        sparse.save_npz(foldername+f"/sp_frame_nh{i}",nh.tocoo())
+        sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
+        sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
 
     p = elementwise_coverage(nh, n, kernel_quarter, params, sim_params)
     f = fitness_spacers(n, nh, p, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
