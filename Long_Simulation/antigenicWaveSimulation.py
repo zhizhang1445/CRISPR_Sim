@@ -15,7 +15,7 @@ from altImmunity import *
 from immunity import *
 from fitness import *
 from mutation import *
-
+from supMethods import *
 
 params = { #parameters relevant for the equations
     "Nh":             1E8,
@@ -40,9 +40,23 @@ sim_params = { #parameters relevant for the simulation (including Inital Valuess
     "conv_size":                 4000,
     "num_threads":                 32,
     "tail_axis":               [1, 1],
+    "t_snapshot":                  10,
 }
 
 params, sim_params = init_cond(params, sim_params)
+
+i = 7
+foldername = f"../Data/test{i}"
+while os.path.exists(foldername):
+    i += 1
+    foldername = f"../Data/test{i}"
+
+try:
+    write2json(foldername, params, sim_params)
+except FileNotFoundError:
+    os.mkdir(foldername)
+    write2json(foldername, params, sim_params)
+
 
 
 n = init_guassian(params["N"], sim_params, "n")
@@ -50,9 +64,11 @@ nh = init_exptail(params["Nh"], params, sim_params, "nh")
 kernel_quarter = init_quarter_kernel(params, sim_params)
 kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
 
-for i in range(sim_params["tf"]):
-    # sparse.save_npz(foldername+f"/sp_frame_n{i}",n.tocoo())
-    # sparse.save_npz(foldername+f"/sp_frame_nh{i}",nh.tocoo())
+for t in range(sim_params["tf"]):
+
+    if t%sim_params["t_snapshot"] == 0:
+        sparse.save_npz(foldername+f"/sp_frame_n{i}",n.tocoo())
+        sparse.save_npz(foldername+f"/sp_frame_nh{i}",nh.tocoo())
 
     p = elementwise_coverage(nh, n, kernel_quarter, params, sim_params)
     f = fitness_spacers(n, nh, p, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
