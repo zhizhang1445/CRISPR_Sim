@@ -23,10 +23,10 @@ def main(params, sim_params):
     params, sim_params = init_cond(params, sim_params)
 
     i = 7
-    foldername = f"../Data/test{i}"
+    foldername = sim_params["foldername"] + f"test{i}"
     while os.path.exists(foldername):
         i += 1
-        foldername = f"../Data/test{i}"
+        foldername = sim_params["foldername"] + f"test{i}"
 
     try:
         write2json(foldername, params, sim_params)
@@ -80,6 +80,7 @@ if __name__ == '__main__':
         "num_threads":                 32,
         "tail_axis":               [1, 1],
         "t_snapshot":                  10,
+        "foldername":              "Data/",
         "seed":                         0,
     }
 
@@ -89,5 +90,7 @@ if __name__ == '__main__':
         sim_params["num_threads"] = int(sys.argv[2])
 
     
+    for seed in np.range(4):
+        for beta in [-0.01, -0.001, 0, 0.001, 0.01]:
+            main(params, sim_params)
 
-    main(params, sim_params)
