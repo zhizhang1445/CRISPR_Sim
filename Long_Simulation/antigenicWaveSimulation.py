@@ -3,7 +3,9 @@ import matplotlib.pyplot as plt
 import numpy.random as random
 import scipy
 from joblib import Parallel, delayed
+import multiprocessing
 from scipy import sparse
+from copy import deepcopy
 import json
 import os
 import sys
@@ -22,7 +24,7 @@ def main(params, sim_params):
     np.random.seed(sim_params['seed'])
     params, sim_params = init_cond(params, sim_params)
 
-    i = 7
+    i = 0
     foldername = sim_params["foldername"] + f"/test{i}"
     while os.path.exists(foldername):
         i += 1
@@ -53,11 +55,17 @@ def main(params, sim_params):
         n = mutation(n, params, sim_params)
         nh_gain = immunity_gain_from_kernel(nh, n, kernel_exp, params, sim_params) #update nh
         nh = immunity_loss_uniform(nh_gain, n, params, sim_params)
+        return 1
+
+def parrallel_main(args):
+    params, sim_params = args
+    main(params, sim_params)
+    return 1
 
 if __name__ == '__main__':
 
     params = { #parameters relevant for the equations
-        "Nh":             1E8,
+        "Nh":             1E7,
         "N0":             1E7, #This Will be updated by self-consitent solution
         "R0":              20, 
         "M":                1, #Also L, total number of spacers
@@ -86,11 +94,36 @@ if __name__ == '__main__':
 
     if len(sys.argv) > 1:
         sim_params["seed"] = int(sys.argv[1])
+        n_seeds = int(sys.argv[1])
+
     if len(sys.argv) > 2:
         sim_params["num_threads"] = int(sys.argv[2])
 
     
-    for seed in np.range(4):
-        for beta in [-0.01, -0.001, 0, 0.001, 0.01]:
-            main(params, sim_params)
+    # for beta in [-0.01, -0.001, 0, 0.001, 0.01]:
+    #     main(params, sim_params)
+
+
+    for beta in [-0.01, -0.001, 0, 0.001, 0.01]: 
+        params_list = []
+        sim_params_list = []
+        num_cores = multiprocessing.cpu_count()
+
+        for seed in range(n_seeds):
+
+            params["beta"] = beta
+
+            sim_params["num_threads"] = int(num_cores // n_seeds)
+            sim_params["seed"] = seed
+            sim_params["foldername"] = "../Data_Parallel" + f"/seed{seed}"
+
+            if not os.path.exists(sim_params["foldername"]):
+                os.mkdir(sim_params["foldername"])
+            params_list.append(deepcopy(params))
+            sim_params_list.append(deepcopy(sim_params))
+
+ # Get the number of available CPU cores
+
+        with multiprocessing.Pool(processes=num_cores) as pool:
+            results = pool.map(parrallel_main, [(params, sim_params) for params, sim_params in zip(params_list, sim_params_list)])
 
