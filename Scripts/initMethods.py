@@ -135,7 +135,7 @@ def init_exptail(init_num, params, sim_params, type = "nh"):
     num_threads = sim_params["num_threads"]
     tau = params["tau"]
     v0 = params["v0"]
-    axis = sim_params["tail_axis"]
+    axis = [1, 1]
 
     x_linspace = np.arange(-x_range+initial_position[0], 
                            x_range+initial_position[0], dx)

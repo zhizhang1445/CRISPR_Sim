@@ -22,26 +22,29 @@ from supMethods import *
 
 def main(params, sim_params):
     np.random.seed(sim_params['seed'])
-    params, sim_params = init_cond(params, sim_params)
+    foldername = sim_params["foldername"]
 
-    i = 0
-    foldername = sim_params["foldername"] + f"/test{i}"
-    while os.path.exists(foldername):
-        i += 1
-        foldername = sim_params["foldername"] + f"/test{i}"
+    if sim_params["continue"]:
+        params, sim_params = read_json(foldername)
+        kernel_quarter = init_quarter_kernel(params, sim_params)
+        kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
+        t, n, nh = load_last_output(foldername)
 
-    try:
-        write2json(foldername, params, sim_params)
-    except FileNotFoundError:
-        os.mkdir(foldername)
-        write2json(foldername, params, sim_params)
+    else:
+        params, sim_params = init_cond(params, sim_params)
+        try:
+            write2json(foldername, params, sim_params)
+        except FileNotFoundError:
+            os.mkdir(foldername)
+            write2json(foldername, params, sim_params)
 
-    n = init_guassian(params["N"], sim_params, "n")
-    nh = init_exptail(params["Nh"], params, sim_params, "nh")
-    kernel_quarter = init_quarter_kernel(params, sim_params)
-    kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
+        n = init_guassian(params["N"], sim_params, "n")
+        nh = init_exptail(params["Nh"], params, sim_params, "nh")
+        kernel_quarter = init_quarter_kernel(params, sim_params)
+        kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
+        t = 0
 
-    for t in range(sim_params["tf"]):
+    while( t < sim_params["tf"]):
 
         if t%sim_params["t_snapshot"] == 0:
             sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
@@ -55,11 +58,7 @@ def main(params, sim_params):
         n = mutation(n, params, sim_params)
         nh_gain = immunity_gain_from_kernel(nh, n, kernel_exp, params, sim_params) #update nh
         nh = immunity_loss_uniform(nh_gain, n, params, sim_params)
-        return 1
-
-def parrallel_main(args):
-    params, sim_params = args
-    main(params, sim_params)
+        t += sim_params["dt"]
     return 1
 
 if __name__ == '__main__':
@@ -78,6 +77,7 @@ if __name__ == '__main__':
         "beta":         0.000,
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
+        "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
         "xdomain":                   1000,
         "dx":                           1,
         "tf":                        2000,
@@ -86,7 +86,6 @@ if __name__ == '__main__':
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                 32,
-        "tail_axis":               [1, 1],
         "t_snapshot":                  10,
         "foldername":            "../Data",
         "seed":                         0,
@@ -102,28 +101,31 @@ if __name__ == '__main__':
     
     # for beta in [-0.01, -0.001, 0, 0.001, 0.01]:
     #     main(params, sim_params)
+    # i = 0
+    # foldername = sim_params["foldername"] + f"/test{i}"
+    # while os.path.exists(foldername):
+    #     i += 1
+    #     foldername = sim_params["foldername"] + f"/test{i}"
 
 
-    for beta in [-0.01, -0.001, 0, 0.001, 0.01]: 
-        params_list = []
-        sim_params_list = []
+    params_list = []
+    sim_params_list = []
+
+    for beta in [-0.1, -0.01, -0.001, 0, 0.001, 0.01]: 
         num_cores = multiprocessing.cpu_count()
 
         for seed in range(n_seeds):
 
             params["beta"] = beta
 
-            sim_params["num_threads"] = int(num_cores // n_seeds)
+            sim_params["num_threads"] = 2
             sim_params["seed"] = seed
-            sim_params["foldername"] = "../Data_Parallel" + f"/seed{seed}"
+            sim_params["foldername"] = "../Data_Parallel" + f"/beta{beta}_seed{seed}"
 
             if not os.path.exists(sim_params["foldername"]):
                 os.mkdir(sim_params["foldername"])
             params_list.append(deepcopy(params))
             sim_params_list.append(deepcopy(sim_params))
 
- # Get the number of available CPU cores
-
-        with multiprocessing.Pool(processes=num_cores) as pool:
-            results = pool.map(parrallel_main, [(params, sim_params) for params, sim_params in zip(params_list, sim_params_list)])
-
+    results = Parallel(n_jobs=len(params_list))(delayed(main)
+            (params, sim_params) for params, sim_params in zip(params_list, sim_params_list))
