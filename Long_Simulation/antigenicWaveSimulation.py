@@ -27,6 +27,15 @@ def main(params, sim_params):
         kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
         t, n, nh = load_last_output(foldername)
 
+
+        nh_total = params["Nh"]
+        n_total = params["N"]
+        uc = params["uc"]
+        sigma = params["sigma"]
+
+        with open(foldername+'/runtime_stats.txt','a') as file:
+            file.write(f't: {t}| Restarted  | Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}\n')
+
     else:
         params, sim_params = init_cond(params, sim_params)
         try:
@@ -43,10 +52,14 @@ def main(params, sim_params):
         ed = time.time()
             
         t = 0
+        nh_total = params["Nh"]
+        n_total = params["N"]
+        uc = params["uc"]
+        sigma = params["sigma"]
         with open(foldername+'/runtime_stats.txt','w') as file:
-            file.write(f't: {t}| init_functions: {time_conv(ed-st)}\n')
+            file.write(f't: {t}| init_functions: {time_conv(ed-st)}| Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}\n')
 
-    while( t < sim_params["tf"]):
+    while(t < sim_params["tf"]):
 
         if t%sim_params["t_snapshot"] == 0:
             sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
@@ -71,15 +84,7 @@ def main(params, sim_params):
         ed = time.time()
 
         with open(foldername+'/runtime_stats.txt','a') as file:
-            outstring = f"""
-                t: {t}|
-                Coverage: {time_conv(st2-st1)}|
-                Growth: {time_conv(st3-st2)}|
-                Mutation: {time_conv(st4-st3)}|
-                Immunity Gain: {time_conv(st5-st4)}|
-                Immunity Loss: {time_conv(ed-st5)}|
-                \n
-            """
+            outstring = f"t: {t}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity Gain: {time_conv(st5-st4)}| Immunity Loss: {time_conv(ed-st5)} \n"
             file.write(outstring)
 
         t += sim_params["dt"]
