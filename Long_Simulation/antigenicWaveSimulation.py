@@ -115,18 +115,23 @@ if __name__ == '__main__':
         "seed":                         0,
     }
 
-    if len(sys.argv) == 1:
-        continue_flag = True
-        sim_params["continue"] = True
-        num_threads_set = True
-
     if len(sys.argv) > 1:
-        n_seeds = int(sys.argv[1])
+        if sys.argv[1] == 1:
+            continue_flag = True
+            sim_params["continue"] = True
+            num_threads_set = True
+        else:
+            continue_flag = False
+            sim_params["continue"] = False
+            num_threads_set = False
+
+    if len(sys.argv) > 2:
+        n_seeds = int(sys.argv[2])
         continue_flag == False
         num_threads_set = False
 
-    if len(sys.argv) > 2:
-        sim_params["num_threads"] = int(sys.argv[2])
+    if len(sys.argv) > 3:
+        sim_params["num_threads"] = int(sys.argv[3])
         num_threads_set = True
 
     params_list = []
