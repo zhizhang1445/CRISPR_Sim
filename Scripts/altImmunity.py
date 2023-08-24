@@ -5,7 +5,6 @@ from joblib import Parallel, delayed, parallel_backend
 from supMethods import timeit
 from formulas import find_max_value_location
 
-@timeit
 def immunity_gain_from_kernel(nh, n, kernel, params, sim_params):
     Nh = params["Nh"]
     num_threads = sim_params["num_threads"]
@@ -67,7 +66,6 @@ def immunity_gain_from_kernel(nh, n, kernel, params, sim_params):
     nh_integrated = nh+np.sum(results, axis = 0)
     return nh_integrated
 
-@timeit
 def immunity_loss_uniform(nh, n, params, sim_params):
     Nh = params["Nh"]
     num_threads = sim_params["num_threads"]

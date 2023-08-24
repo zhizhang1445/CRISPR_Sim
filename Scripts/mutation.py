@@ -53,7 +53,6 @@ def mutation_jump(m, params, sim_params):
     jump = np.round(jump)
     return jump
 
-@timeit
 def mutation(n, params, sim_params):
     num_threads = sim_params["num_threads"]
     checksum = np.sum(n)

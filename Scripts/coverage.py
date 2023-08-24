@@ -40,7 +40,6 @@ def square_split(array, split_size): #Find smallest matrix possible and make it 
     # Create a list of starting indices for each subarray
     return subarrays, start_indices
 
-@timeit
 def split_coverage(nh, n, kernel, params, sim_params): #TODO This is already parallel, SPARSE THIS
     num_cores = sim_params["num_threads"]
     input_data = nh/params["Nh"]
@@ -82,7 +81,6 @@ def split_coverage(nh, n, kernel, params, sim_params): #TODO This is already par
 
     return output/params["M"]
 
-@timeit
 def elementwise_coverage(nh, n, kernel_quarter, params, sim_params):
     conv_size = sim_params["conv_size"]
     Nh = params["Nh"]
@@ -125,5 +123,4 @@ def elementwise_coverage(nh, n, kernel_quarter, params, sim_params):
                 in zip(x_nh_sets, y_nh_sets))
     
     out = np.sum(results, axis=0)
-    # out = convolve_subset()
     return out/M

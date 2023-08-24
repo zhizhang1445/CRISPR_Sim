@@ -29,7 +29,7 @@ def fill_parameters(params, sim_params):
     params["uc"] = uc    
     return params, sim_params
 
-def init_cond(params, sim_params):
+def init_cond(params, sim_params, out_print = False):
     Nh = params["Nh"]
     N0 = params["N0"]
     params["N"] = N0
@@ -39,7 +39,8 @@ def init_cond(params, sim_params):
         N0 = params["N"]
         uc = params["uc"]
         sigma = params["sigma"]
-        print(f"Phage Population: {N0:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}")
+        if out_print:
+            print(f"Phage Population: {N0:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}")
         
         if np.isnan(uc) or np.isnan(sigma):
             raise(ValueError("You need >10E6 Nh or >10E3 N0"))
@@ -51,7 +52,8 @@ def init_cond(params, sim_params):
             params, sim_params = fill_parameters(params, sim_params)
             uc = params["uc"]
             sigma = params["sigma"]
-            print(f"Phage Population: {N:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}")
+            if out_print:
+                print(f"Phage Population: {N:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}")
             break
 
     uc = params["uc"]

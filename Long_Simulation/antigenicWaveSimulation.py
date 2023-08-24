@@ -1,12 +1,9 @@
 import numpy as np
-import matplotlib.pyplot as plt
-import numpy.random as random
-import scipy
 from joblib import Parallel, delayed
 import multiprocessing
 from scipy import sparse
 from copy import deepcopy
-import json
+import time
 import os
 import sys
 
@@ -38,11 +35,16 @@ def main(params, sim_params):
             os.mkdir(foldername)
             write2json(foldername, params, sim_params)
 
+        st = time.time()
         n = init_guassian(params["N"], sim_params, "n")
         nh = init_exptail(params["Nh"], params, sim_params, "nh")
         kernel_quarter = init_quarter_kernel(params, sim_params)
         kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
+        ed = time.time()
+            
         t = 0
+        with open(foldername+'/runtime_stats.txt','w') as file:
+            file.write(f't: {t}| init_functions: {time_conv(ed-st)}\n')
 
     while( t < sim_params["tf"]):
 
@@ -50,14 +52,36 @@ def main(params, sim_params):
             sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
             sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
 
+        st1 = time.time()
         p = elementwise_coverage(nh, n, kernel_quarter, params, sim_params)
+
+        st2 = time.time()
         f = fitness_spacers(n, nh, p, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0)
         f = norm_fitness(f, n, params, sim_params) #renormalize f
         n = virus_growth(n, f, params, sim_params) #update
 
+        st3 = time.time()
         n = mutation(n, params, sim_params)
+
+        st4 = time.time()
         nh_gain = immunity_gain_from_kernel(nh, n, kernel_exp, params, sim_params) #update nh
+
+        st5 = time.time()
         nh = immunity_loss_uniform(nh_gain, n, params, sim_params)
+        ed = time.time()
+
+        with open(foldername+'/runtime_stats.txt','a') as file:
+            outstring = f"""
+                t: {t}|
+                Coverage: {time_conv(st2-st1)}|
+                Growth: {time_conv(st3-st2)}|
+                Mutation: {time_conv(st4-st3)}|
+                Immunity Gain: {time_conv(st5-st4)}|
+                Immunity Loss: {time_conv(ed-st5)}|
+                \n
+            """
+            file.write(outstring)
+
         t += sim_params["dt"]
     return 1
 
@@ -70,7 +94,7 @@ if __name__ == '__main__':
         "M":                1, #Also L, total number of spacers
         "mu":            0.01, #mutation rate
         "gamma_shape":     20, 
-        "Np":               0, #Number of Cas Protein
+        "Np":              10, #Number of Cas Protein
         "dc":               3, #Required number of complexes to activate defence
         "h":                4, #coordination coeff
         "r":             2000, #cross-reactivity kernel
@@ -85,40 +109,41 @@ if __name__ == '__main__':
         "initial_mean_n":           [0,0],
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
-        "num_threads":                 32,
+        "num_threads":                  1,
         "t_snapshot":                  10,
         "foldername":            "../Data",
         "seed":                         0,
     }
 
+    if len(sys.argv) == 1:
+        continue_flag = True
+        sim_params["continue"] = True
+        num_threads_set = True
+
     if len(sys.argv) > 1:
-        sim_params["seed"] = int(sys.argv[1])
         n_seeds = int(sys.argv[1])
+        continue_flag == False
+        num_threads_set = False
 
     if len(sys.argv) > 2:
         sim_params["num_threads"] = int(sys.argv[2])
-
-    
-    # for beta in [-0.01, -0.001, 0, 0.001, 0.01]:
-    #     main(params, sim_params)
-    # i = 0
-    # foldername = sim_params["foldername"] + f"/test{i}"
-    # while os.path.exists(foldername):
-    #     i += 1
-    #     foldername = sim_params["foldername"] + f"/test{i}"
-
+        num_threads_set = True
 
     params_list = []
     sim_params_list = []
+    list_to_sweep = [-0.1, -0.01, -0.001, 0, 0.001, 0.01]
 
-    for beta in [-0.1, -0.01, -0.001, 0, 0.001, 0.01]: 
-        num_cores = multiprocessing.cpu_count()
+    num_cores = multiprocessing.cpu_count()
+    if not num_threads_set:
+        best_ratio = int(num_cores // (len(list_to_sweep)*n_seeds))
+        num_cores_per_run = best_ratio if best_ratio >= 1 else 1
+        sim_params["num_threads"] = num_cores_per_run
+        print(f"Each Run is done with {num_cores_per_run} cores")
+
+    for i, beta in enumerate(list_to_sweep): 
 
         for seed in range(n_seeds):
-
             params["beta"] = beta
-
-            sim_params["num_threads"] = 2
             sim_params["seed"] = seed
             sim_params["foldername"] = "../Data_Parallel" + f"/beta{beta}_seed{seed}"
 
