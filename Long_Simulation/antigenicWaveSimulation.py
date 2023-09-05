@@ -136,7 +136,7 @@ if __name__ == '__main__':
 
     params_list = []
     sim_params_list = []
-    list_to_sweep = [-0.1, -0.01, -0.001, 0, 0.001, 0.01]
+    list_to_sweep = [-0.1, -0.1, -0.01, -0.001, 0, 0.001, 0.01, 0.1, 0.2, 0.3]
 
     num_cores = multiprocessing.cpu_count()
     if not num_threads_set:
@@ -150,7 +150,7 @@ if __name__ == '__main__':
         for seed in range(n_seeds):
             params["beta"] = beta
             sim_params["seed"] = seed
-            sim_params["foldername"] = "../Data_Parallel" + f"/beta{beta}_seed{seed}"
+            sim_params["foldername"] = "../Data_Beta" + f"/beta{beta}_seed{seed}"
 
             if not os.path.exists(sim_params["foldername"]):
                 os.mkdir(sim_params["foldername"])

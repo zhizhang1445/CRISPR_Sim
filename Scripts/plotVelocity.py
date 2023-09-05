@@ -93,3 +93,17 @@ def plot_velocity(foldername_itr, limits = [0.07, 0.07]):
     plt.xlabel("Calculated Velocity")
     plt.ylabel("Observed Velocity")
     plt.legend()
+
+def get_count_single(init_list, params, sim_params):
+    count_all_root = np.array([])
+
+    for root_node in init_list:
+        for trajs in root_node.get_all_traversals():
+            positions = [x.mean for x in trajs]
+            time = [x.frame for x in trajs]
+            time_avg = average_of_pairs(time)
+            
+            counts = np.array([x.count for x in trajs])
+            count_all_root = np.concatenate([count_all_root, np.mean(counts)], axis=0)
+
+    return count_all_root 
