@@ -26,7 +26,8 @@ def fill_parameters(params, sim_params):
 
     params["v0"] = v0
     params["sigma"] = sigma
-    params["uc"] = uc    
+    params["uc"] = uc
+    params["M0"] = M
     return params, sim_params
 
 def init_cond(params, sim_params, out_print = False):
@@ -58,6 +59,7 @@ def init_cond(params, sim_params, out_print = False):
 
     uc = params["uc"]
     sigma = params["sigma"]
+    params["N0"] = params["N"] #update actual N
     sim_params["initial_var_n"] = sigma
     sim_params["initial_var_nh"] = np.sqrt(np.power(sigma, 2) + np.power(uc, 2))
     return params, sim_params

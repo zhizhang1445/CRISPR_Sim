@@ -13,10 +13,11 @@ from formulas import find_max_value_location
 @timeit
 def immunity_update(nh, n, params, sim_params):
     Nh = params["Nh"]
+    M = params["M"]
     num_threads = sim_params["num_threads"]
     nh = nh + n
     total_number = np.sum(nh)
-    num_to_remove = int(total_number - Nh)
+    num_to_remove = int(total_number - Nh*M)
 
     nonzero_indices = np.transpose(nh.nonzero())
     nonzero_indices_subset = np.array_split(nonzero_indices, num_threads, axis=0)
@@ -61,7 +62,7 @@ def immunity_update(nh, n, params, sim_params):
             in zip(set_index_w_repeats, set_num_to_remove))
     nh = nh + np.sum(results, axis=0)
 
-    if np.sum(nh) != Nh:
+    if np.sum(nh) != int(Nh*M):
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     
     min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
@@ -74,9 +75,10 @@ def immunity_update(nh, n, params, sim_params):
 @timeit
 def immunity_mean_field(nh, n, params, sim_params):
     Nh = params["Nh"]
+    M = params["M"]
     nh = nh + n
     total_number = np.sum(nh)
-    num_to_remove = int(total_number - Nh)
+    num_to_remove = int(total_number - Nh*M)
     ratio = 1-(num_to_remove/total_number)
 
     nh_new = scipy.sparse.dok_matrix(nh.shape)
@@ -91,7 +93,7 @@ def immunity_mean_field(nh, n, params, sim_params):
     nh_new[x_max, y_max] += error
 
 
-    if np.sum(nh_new) != Nh:
+    if np.sum(nh_new) != Nh*M:
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     
     min_val = np.min(nh_new.tocoo()) if (scipy.sparse.issparse(nh_new)) else np.min(nh_new)
@@ -104,9 +106,10 @@ def immunity_mean_field(nh, n, params, sim_params):
 @timeit
 def immunity_update_SerialChoice(nh, n, params, sim_params):
     Nh = params["Nh"]
+    M = params["M"]
     num_threads = sim_params["num_threads"]
     nh = nh + n
-    num_to_remove = int(np.sum(nh) - Nh)
+    num_to_remove = int(np.sum(nh) - Nh*M)
 
     nonzero_indices = np.transpose(nh.nonzero())
     nonzero_indices_subset = np.array_split(nonzero_indices, num_threads, axis=0)
@@ -141,7 +144,7 @@ def immunity_update_SerialChoice(nh, n, params, sim_params):
         delayed(remove_points)(flat_index) for flat_index in ind_per_thread_list)
     nh = nh + np.sum(results, axis=0)
 
-    if np.sum(nh) != Nh:
+    if np.sum(nh) != Nh*M:
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     
     min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)

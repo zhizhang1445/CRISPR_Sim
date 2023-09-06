@@ -5,11 +5,15 @@ from joblib import Parallel, delayed, parallel_backend
 from supMethods import timeit
 from formulas import find_max_value_location
 
-def immunity_gain_from_kernel(nh, n, kernel, params, sim_params):
+def immunity_gain_from_kernel(nh, n, kernel, params, sim_params, num_to_add = None):
     Nh = params["Nh"]
+    M = params["M"]
     num_threads = sim_params["num_threads"]
     conv_size = sim_params["conv_size"]
-    num_to_add = np.sum(n)
+
+    if num_to_add is None:
+        num_to_add = np.sum(n)
+
     x_ind, y_ind = n.nonzero()
     support_size = len(x_ind)
     x_max, y_max  = find_max_value_location(nh)
@@ -66,12 +70,15 @@ def immunity_gain_from_kernel(nh, n, kernel, params, sim_params):
     nh_integrated = nh+np.sum(results, axis = 0)
     return nh_integrated
 
-def immunity_loss_uniform(nh, n, params, sim_params):
+def immunity_loss_uniform(nh, n, params, sim_params, num_to_remove = None):
     Nh = params["Nh"]
+    M = params["M"]
     num_threads = sim_params["num_threads"]
 
     total_number = np.sum(nh)
-    num_to_remove = int(total_number - Nh)
+    
+    if num_to_remove is None:
+        num_to_remove = int(total_number - Nh*M)
 
     nonzero_indices = np.transpose(nh.nonzero())
     nonzero_indices_subset = np.array_split(nonzero_indices, num_threads, axis=0)
@@ -116,7 +123,7 @@ def immunity_loss_uniform(nh, n, params, sim_params):
             in zip(set_index_w_repeats, set_num_to_remove))
     nh = nh + np.sum(results, axis=0)
 
-    if np.sum(nh) != Nh:
+    if np.sum(nh) != int(Nh*M) :
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     
     min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
