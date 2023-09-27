@@ -40,6 +40,19 @@ def calculate_DlnND(N, params, sim_params):
     v = np.power(D, 2/3)*np.power(common_log, 1/3)
     return v
 
+def calculate_var(N, params, sim_params):
+    R0 = params["R0"]
+    M = params["M"]
+    r = params["r"]
+
+    D = calc_diff_const(params, sim_params)
+    inv_v_tau = (np.power(R0, 1/M)-1)/r
+    s = M*inv_v_tau
+
+    common_log = np.log(N*np.power(D*np.power(s, 2), 1/3))
+    var = np.power(D/s, 1/3)*np.power(common_log, 1/6)
+    return var
+
 def calculate_FisherVelocity(N, params, sim_params):
     R0 = params["R0"]
     M = params["M"]
