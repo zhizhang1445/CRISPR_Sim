@@ -10,7 +10,7 @@ from supMethods import timeit
 from formulas import find_max_value_location
 
 
-@timeit
+# @timeit
 def immunity_update(nh, n, params, sim_params):
     Nh = params["Nh"]
     M = params["M"]
