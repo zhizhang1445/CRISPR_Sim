@@ -62,7 +62,7 @@ def immunity_update(nh, n, params, sim_params):
             in zip(set_index_w_repeats, set_num_to_remove))
     nh = nh + np.sum(results, axis=0)
 
-    if np.sum(nh) != int(Nh*M):
+    if np.abs(np.sum(nh) - Nh*M) >= 1:
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     
     min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
@@ -93,7 +93,7 @@ def immunity_mean_field(nh, n, params, sim_params):
     nh_new[x_max, y_max] += error
 
 
-    if np.sum(nh_new) != Nh*M:
+    if np.sum(nh_new) != np.ceil(Nh*M):
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     
     min_val = np.min(nh_new.tocoo()) if (scipy.sparse.issparse(nh_new)) else np.min(nh_new)
@@ -144,7 +144,7 @@ def immunity_update_SerialChoice(nh, n, params, sim_params):
         delayed(remove_points)(flat_index) for flat_index in ind_per_thread_list)
     nh = nh + np.sum(results, axis=0)
 
-    if np.sum(nh) != Nh*M:
+    if np.abs(np.sum(nh) - Nh*M) >= 1:
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
     
     min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)

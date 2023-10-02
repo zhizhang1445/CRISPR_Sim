@@ -12,6 +12,36 @@ from trajsTree import *
 from supMethods import *
 from formulas import *
 
+def get_count_single(init_list, params, sim_params):
+    count_all_root = []
+
+    for root_node in init_list:
+        for trajs in root_node.get_all_traversals():
+            
+            counts = np.array([x.count for x in trajs])
+            if len(counts)>0:
+                count_all_root.extend(counts)
+
+    return  np.mean(count_all_root), np.var(count_all_root)
+
+def get_var_single(init_list, params, sim_params):
+    var_all_root = []
+    var_calc_all_root = []
+
+    for root_node in init_list:
+        for trajs in root_node.get_all_traversals():
+            
+            var = np.array([np.linalg.det(x.cov) for x in trajs])
+            if len(var)>0:
+                var_all_root.extend(var)
+
+            count = np.array([x.count for x in trajs])
+            if len(count)>0:
+                var_calc = calculate_var(count, params, sim_params)
+                var_calc_all_root.extend(var_calc)
+
+    return  np.mean(var_all_root), np.var(var_all_root), np.mean(var_calc_all_root), np.var(var_calc_all_root)
+
 def plot_velocity_single(init_list, params, sim_params, show = False):
     velocity_obs = np.array([])
     velocity_calc = np.array([])
@@ -81,7 +111,7 @@ def plot_velocity(foldername_itr, limits = [0.07, 0.07]):
     plt.errorbar(v_calc_mean, v_obs_mean, xerr= v_calc_var,
                 yerr = v_obs_var, linestyle = "None", capsize = 1)
     # plt.scatter(population_mean, velocity_mean)
-    plt.scatter(v_Fisher_mean, v_obs_mean, color = "orange", linestyle = '--', label = "Fisher Velocity")
+    # plt.scatter(v_Fisher_mean, v_obs_mean, color = "orange", linestyle = '--', label = "Fisher Velocity")
 
     line_x = np.linspace(0, limits[0], 100)
     line_y = np.linspace(0, limits[1], 100)
@@ -90,11 +120,11 @@ def plot_velocity(foldername_itr, limits = [0.07, 0.07]):
     plt.plot(line_x, line_y, color='red', linestyle='--', label = "Linear Fitness Velocity")
     plt.xlim(0, limits[0])
     plt.ylim(0, limits[1])
-    plt.xlabel("Calculated Velocity")
-    plt.ylabel("Observed Velocity")
+    plt.xlabel("Theoretical Velocity")
+    plt.ylabel("Numerical Velocity")
     plt.legend()
 
-def get_count_single(init_list, params, sim_params):
+def get_mean_count_single(init_list, params, sim_params):
     count_all_root = np.array([])
 
     for root_node in init_list:
