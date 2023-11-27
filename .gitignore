@@ -1,7 +1,6 @@
 **/**.npy
 **/**.npz
 **/test*
-/.vscode
 **/__pycache__
 /.vscode
 **/**.pyc
