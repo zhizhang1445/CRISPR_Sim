@@ -34,20 +34,20 @@ def read_json(foldername):
     return params, sim_params
 
 def load_last_output(foldername):
-    files_in_directory = [f for f in os.listdir('.') if os.path.isfile(f) and f.startswith('sp.frame_n') and f.endswith('.npz')]
+    files_in_directory = [f for f in os.listdir(foldername) if f.startswith('sp_frame_nh') and f.endswith('.npz')]
 
     if not files_in_directory:
-        raise FileNotFoundError("No sp.frame_n*.npz files found in the current directory.")
+        raise FileNotFoundError("No sp_frame_n*.npz files found in the current directory.")
 
     highest_numeric_value = float('-inf')
 
     for filename in files_in_directory:
-        numeric_value = int(filename.split('sp.frame_n')[1].split('.npz')[0])
+        numeric_value = int(filename.split('sp_frame_nh')[1].split('.npz')[0]) #USE Nh instead of N cuz N will give you h0
         if numeric_value > highest_numeric_value:
             highest_numeric_value = numeric_value
     
-    n = scipy.sparse.load_npz(foldername+f"/sp_frame_n{highest_numeric_value}.npz")
-    nh = scipy.sparse.load_npz(foldername+f"/sp_frame_nh{highest_numeric_value}.npz")
+    n = scipy.sparse.load_npz(foldername + f"/sp_frame_n{highest_numeric_value}.npz").todok()
+    nh = scipy.sparse.load_npz(foldername + f"/sp_frame_nh{highest_numeric_value}.npz").todok()
     return highest_numeric_value, n, nh
 
 def time_conv(st):

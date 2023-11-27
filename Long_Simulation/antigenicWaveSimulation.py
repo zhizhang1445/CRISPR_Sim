@@ -94,11 +94,11 @@ def main(params, sim_params):
 if __name__ == '__main__':
 
     params = { #parameters relevant for the equations
-        "Nh":             1E7,
+        "Nh":             1E6,
         "N0":             1E7, #This Will be updated by self-consitent solution
         "R0":              20, 
         "M":                1, #Also L, total number of spacers
-        "mu":            0.01, #mutation rate
+        "mu":             0.1, #mutation rate
         "gamma_shape":     20, 
         "Np":               0, #Number of Cas Protein
         "dc":               3, #Required number of complexes to activate defence
@@ -110,53 +110,67 @@ if __name__ == '__main__':
         "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
         "xdomain":                   1000,
         "dx":                           1,
-        "tf":                        2000,
+        "tf":                       10000,
         "dt":                           1,
+        "dt_exact_fitness":             0,
         "initial_mean_n":           [0,0],
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                  1,
         "t_snapshot":                  10,
-        "foldername":            "../Data",
+        "foldername":"../Data_temp_name5",
         "seed":                         0,
     }
+    continue_flag = False
+    num_threads_set = False
+    n_seeds = 1
+    foldername = sim_params["foldername"]
+    #the call is python3 antigenicWaveSimulation.py <num_cores> <num_seeds> <0 for restart or 1 for continue>
 
     if len(sys.argv) > 1:
-        if sys.argv[1] == 1:
-            continue_flag = True
-            sim_params["continue"] = True
-            num_threads_set = True
-        else:
-            continue_flag = False
-            sim_params["continue"] = False
-            num_threads_set = False
+        sim_params["num_threads"] = int(sys.argv[2])
+        num_threads_set = True
 
     if len(sys.argv) > 2:
         n_seeds = int(sys.argv[2])
-        continue_flag == False
-        num_threads_set = False
 
     if len(sys.argv) > 3:
-        sim_params["num_threads"] = int(sys.argv[3])
-        num_threads_set = True
+        if int(sys.argv[3]) == 1:
+            if os.path.isdir(foldername):
+                continue_flag = True
+                print("Continuing where we left off")
+                sim_params["continue"] = True
+
+            else:
+                os.mkdir(foldername)
+                print("Created new folder: ", foldername)
+                continue_flag = False
+                sim_params['continue'] = False
+    
+        elif int(sys.argv[3]) == 0:
+            continue_flag = False
+            sim_params["continue"] = False
+        else:
+            ValueError("Error in arguments")
 
     params_list = []
     sim_params_list = []
-    list_to_sweep = [-1, -1.25, -1.5, -1.75, -2, -2.25, -2.5, -2.75, -3, -3.25, -3.5, -3.75]
+    list_to_sweep1 = [-1, -1.25, -1.5, -1.75, -2, -2.25, -2.5, -2.75, -3, -3.25, -3.5, -3.75]
+    list_to_sweep2 = [0, -0.01, -0.02, -0.05]
 
     num_cores = multiprocessing.cpu_count()
     if not num_threads_set:
-        best_ratio = int(num_cores // (len(list_to_sweep)*n_seeds))
+        best_ratio = int(num_cores // (len(list_to_sweep2)*n_seeds))
         num_cores_per_run = best_ratio if best_ratio >= 1 else 1
         sim_params["num_threads"] = num_cores_per_run
         print(f"Each Run is done with {num_cores_per_run} cores")
 
-    for i, mu_power in enumerate(list_to_sweep): 
+    for i, beta in enumerate(list_to_sweep2): 
 
         for seed in range(n_seeds):
-            params["mu"] = np.power(10.0, mu_power)
+            params["beta"] = beta
             sim_params["seed"] = seed
-            sim_params["foldername"] = "../Data_Long" + f"/mu_power{mu_power}_seed{seed}"
+            sim_params["foldername"] = foldername + f"/beta{beta}_seed{seed}"
 
             if not os.path.exists(sim_params["foldername"]):
                 os.mkdir(sim_params["foldername"])

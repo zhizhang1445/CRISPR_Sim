@@ -10,5 +10,7 @@ source ~/.virtualenvs/Env4Zhi/bin/activate
 # Turn off implicit threading in Python, R
 export OMP_NUM_THREADS=80
 
-python3 antigenicWaveSimulation.py 80
+python3 antigenicWaveSimulation.py 80 8
+
+ssh nia-login01 "cd $SLURM_SUBMIT_DIR; cd CRISPR_SIM/Long_Simulation/bashhelper.sh"
 wait
