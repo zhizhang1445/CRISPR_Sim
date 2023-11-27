@@ -1,5 +1,5 @@
 {
     "makefile.extensionOutputFolder": "./.vscode",
-    "python.analysis.typeCheckingMode": "off"
+    "python.analysis.typeCheckingMode": "off",
     "python.autoComplete.extraPaths": ["../Scripts"]
 }
