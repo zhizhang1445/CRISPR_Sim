@@ -7,6 +7,7 @@ from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
 from supMethods import timeit
 from concurrent.futures import as_completed
+from formulas import find_max_value_location
 
 def alpha(d, params): #This doesn't need to be sparsed
     dc = params["dc"]
@@ -61,6 +62,18 @@ def fitness_spacers(n, nh, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
         
     res = scipy.sparse.dok_matrix(n.shape, dtype=float)
     res[x_ind, y_ind] = np.log(R0*p_tt)
+    return res
+
+
+def fitness_spacers_fast(f_prev, shift, params):
+    x_ind, y_ind = np.nonzero(f_prev)
+    shift_x, shift_y = shift
+
+    res = scipy.sparse.dok_matrix(f_prev.shape, dtype = float)
+    try:
+        res[x_ind+shift_x, y_ind+shift_y] = f_prev[x_ind, y_ind]
+    except IndexError:
+        return f_prev
     return res
 
 def norm_fitness(f_sparse, n, params, sim_params):

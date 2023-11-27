@@ -14,6 +14,34 @@ def find_max_value_location(matrix):
 
     return max_row, max_col
 
+def find_mean_location(matrix):
+    mean_row = 0
+    mean_col = 0
+    tt_value = 0
+
+    for (row, col), value in matrix.items():
+        mean_row += row*value
+        mean_col += col*value
+        tt_value += value
+    
+    mean_row = mean_row/tt_value
+    mean_col = mean_col/tt_value
+
+    return mean_row, mean_col
+
+def compute_shift(nh, nh_prev, type = "mean"):
+
+    if type == "max":
+        x_old, y_old= find_max_value_location(nh_prev)
+        x_new, y_new= find_max_value_location(nh)
+    elif type == "mean":
+        x_old, y_old = find_mean_location(nh_prev)
+        x_new, y_new = find_mean_location(nh)
+
+    shift_x = np.rint(x_new - x_old).astype(int)
+    shift_y = np.rint(y_new - y_old).astype(int)
+    return shift_x, shift_y
+
 def calculate_velocity(N, params, sim_params):
     R0 = params["R0"]
     M = params["M"]
