@@ -14,6 +14,7 @@ from altImmunity import *
 from immunity import *
 from fitness import *
 from mutation import *
+from formulas import compute_shift
 from supMethods import *
 
 
@@ -65,7 +66,7 @@ def main(params, sim_params):
 
     while(t < sim_params["tf"]):
 
-        if t%sim_params["t_snapshot"] == 0:
+        if t%sim_params["dt_snapshot"] == 0:
             sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
             sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
 
@@ -91,7 +92,7 @@ def main(params, sim_params):
         st4 = time.time()
         nh_prev = nh
         nh = immunity_update(nh_prev, n, params, sim_params)
-        shift_vector = compute_shift(nh, nh_prev)
+        shift_vector = compute_shift(nh, nh_prev, "max")
 
         # nh_gain = immunity_gain_from_kernel(nh, n, kernel_exp, params, sim_params) #update nh
         # nh = immunity_loss_uniform(nh_gain, n, params, sim_params)
@@ -126,12 +127,12 @@ if __name__ == '__main__':
         "tf":                       10000,
         "dt":                           1,
         "dt_exact_fitness":            10,
+        "dt_snapshot":                 10,
         "initial_mean_n":           [0,0],
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                  1,
-        "t_snapshot":                  10,
-        "foldername":"../Data_temp_name5",
+        "foldername":"../Data_temp_name7",
         "seed":                         0,
     }
     continue_flag = False
@@ -168,7 +169,7 @@ if __name__ == '__main__':
 
     params_list = []
     sim_params_list = []
-    list_to_sweep1 = [-1, -1.25, -1.5, -1.75, -2, -2.25, -2.5, -2.75, -3, -3.25, -3.5, -3.75]
+    # list_to_sweep1 = [-1, -1.25, -1.5, -1.75, -2, -2.25, -2.5, -2.75, -3, -3.25, -3.5, -3.75]
     list_to_sweep2 = [0, -0.01, -0.02, -0.05]
 
     num_cores = multiprocessing.cpu_count()
@@ -187,7 +188,6 @@ if __name__ == '__main__':
 
             if not os.path.exists(sim_params["foldername"]):
                 os.mkdir(sim_params["foldername"])
-                # print("check for problem with file creation")
             params_list.append(deepcopy(params))
             sim_params_list.append(deepcopy(sim_params))
 

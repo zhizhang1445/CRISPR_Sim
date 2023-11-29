@@ -29,7 +29,7 @@ def find_mean_location(matrix):
 
     return mean_row, mean_col
 
-def compute_shift(nh, nh_prev, type = "mean"):
+def compute_shift(nh, nh_prev, type = "max"):
 
     if type == "max":
         x_old, y_old= find_max_value_location(nh_prev)
