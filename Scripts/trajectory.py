@@ -16,6 +16,14 @@ def get_nonzero_w_repeats(n_i):
             index_nonzero_w_repeats.append(index)
     return index_nonzero_w_repeats
 
+def get_nonzero_no_repeats(n_i):
+    x_ind, y_ind = np.nonzero(n_i)
+    nonzero_values = [n_i[index] for index in zip(x_ind, y_ind)]
+    index_nonzero_w_repeats = []
+    for index in zip(x_ind, y_ind):
+        index_nonzero_w_repeats.append(index)
+    return nonzero_values, index_nonzero_w_repeats
+
 def checkIfInEllipse(mean1, mean2, cov1, scale = 1) -> bool:
     eigval, eigvec = np.linalg.eigh(cov1)
     # dist = np.linalg.norm(mean1-mean2)
