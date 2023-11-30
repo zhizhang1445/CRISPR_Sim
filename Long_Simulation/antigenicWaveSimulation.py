@@ -40,6 +40,7 @@ def main(params, sim_params):
         except KeyError or (nh is None): #the folders were empty so better restart everything
             sim_params["continue"] = False
 
+
     if not sim_params["continue"]: #not an else statement because this also serves as error catch for the if statement
         params, sim_params = init_cond(params, sim_params)
         try:
@@ -86,6 +87,12 @@ def main(params, sim_params):
         
         n = virus_growth(n, f, params, sim_params) #update
         
+        if (np.sum(n) <= 0) or (np.sum(n) >= (1/2)*np.sum(nh)):
+            with open(foldername+'/runtime_stats.txt','a') as file:
+                outstring = f"DEAD at: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
+                file.write(outstring)
+            return 1
+
         st3 = time.time()
         n = mutation(n, params, sim_params)
 
@@ -99,7 +106,7 @@ def main(params, sim_params):
         ed = time.time()
 
         with open(foldername+'/runtime_stats.txt','a') as file:
-            outstring = f"t: {t}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
+            outstring = f"t: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
             file.write(outstring)
 
         t += sim_params["dt"]
@@ -132,7 +139,7 @@ if __name__ == '__main__':
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                  1,
-        "foldername":"../Data_temp_name7",
+        "foldername":"../Data_temp_name8",
         "seed":                         0,
     }
     continue_flag = False
