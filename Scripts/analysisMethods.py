@@ -71,7 +71,12 @@ def create_both_Gifs(t_domain, foldername, margins):
             print(t)
             break
     else:
-        make_Gif(foldername, t_domain_no_error, typename = "GMM_plots", margins = margins)
+        make_Gif(foldername, t_domain_no_error, typename = "GMM_plots")
         save_Treelist(foldername, init_list)
         print("GMM plots made")
     return 1
+
+def main(foldername):
+    
+
+if __name__ = "__main__":
