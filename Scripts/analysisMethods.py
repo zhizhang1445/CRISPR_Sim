@@ -77,6 +77,7 @@ def create_both_Gifs(t_domain, foldername, margins):
     return 1
 
 def main(foldername):
-    
 
-if __name__ = "__main__":
+
+if __name__ == "__main__":
+    pass
