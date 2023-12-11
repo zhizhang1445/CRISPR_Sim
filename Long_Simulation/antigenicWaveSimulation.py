@@ -76,7 +76,9 @@ def main(params, sim_params):
             p = elementwise_coverage(nh, n, kernel_quarter, params, sim_params)
             st2 = time.time()
             f = fitness_spacers(n, nh, p, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0
+            sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
             f = norm_fitness(f, n, params, sim_params) #renormalize f
+
         else:
             st1 = time.time()
             f = fitness_spacers_fast(f, shift_vector, params)
@@ -131,10 +133,10 @@ if __name__ == '__main__':
         "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
         "xdomain":                   1000,
         "dx":                           1,
-        "tf":                       10000,
+        "tf":                        2000,
         "dt":                           1,
-        "dt_exact_fitness":            10,
-        "dt_snapshot":                 10,
+        "dt_exact_fitness":             1,
+        "dt_snapshot":                  1,
         "initial_mean_n":           [0,0],
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,

@@ -130,8 +130,10 @@ def Sum_Normal(n, means, covs, counts):
     
     return sum_Normal
 
-def fit_GMM(n, index_nonzero_w_repeats, cov_type = "full",
-                     n_components = 10):
+def fit_GMM(n, params, sim_params, index_nonzero_w_repeats, cov_type = "full",
+                     n_components = 1):
+
+    var_limit = params["D"]*4*sim_params["dt"]
 
     gaussian_estimator =  GaussianMixture(
                 n_components= n_components,
@@ -144,26 +146,16 @@ def fit_GMM(n, index_nonzero_w_repeats, cov_type = "full",
 
     covs = gaussian_estimator.covariances_
     means = gaussian_estimator.means_
-    clusters = gaussian_estimator.predict(index_nonzero_w_repeats)
 
+    for cov in covs:
+        var_area = np.linalg.det(cov)
+        if var_area > var_limit:
+            return fit_GMM(n, params, sim_params, index_nonzero_w_repeats, 
+                           n_components=n_components+1)
+    
+    clusters = gaussian_estimator.predict(index_nonzero_w_repeats)
     _ , counts = np.unique(clusters, return_counts= True)
 
-    calc_data = Sum_Normal(n, means, covs, counts)
-    x_inds, y_inds = n.nonzero()
-    classification = gaussian_estimator.predict(np.array([x_inds, y_inds]).transpose())
-
-    chi_sqr = 0
-    for x_ind, y_ind, i in zip(x_inds, y_inds, classification):
-        diff = n[x_ind, y_ind] - calc_data[x_ind, y_ind]
-        variance = np.linalg.det(covs[i])
-
-        chi_sqr += np.power(diff, 2)/variance
-
-    deg_freedom = n_components*5
-
-    red_chi_sqr = chi_sqr/deg_freedom
-    print("Reduced ChiSqrd: ", red_chi_sqr)
-
-    return red_chi_sqr, means, covs, counts
+    return means, covs, counts
 
 

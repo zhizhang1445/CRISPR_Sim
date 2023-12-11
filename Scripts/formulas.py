@@ -124,10 +124,10 @@ def calc_diff_const(params, sim_params):
     return diff_const
 
 
-def guassian_diffusion(xspace, yspace, t, params, sim_params):
-    nh_var = sim_params["initial_var_n"]
+def guassian_diffusion(xspace, yspace, t, params, sim_params, print_flag = False):
+    n_var = sim_params["initial_var_n"]
     diff_const = calc_diff_const(params, sim_params)
-    a = 1/(2*nh_var**2)
+    a = 1/(2*n_var**2)
     b = 1/(4*diff_const*t)
 
     c = (1/a +1/b)
@@ -137,6 +137,7 @@ def guassian_diffusion(xspace, yspace, t, params, sim_params):
 
     func = np.exp(-rsqrd/c)
     func = (func/np.sum(func))
-    print("Diffusion Constant: ", diff_const)
-    print("Current Normal Variance: ", np.sqrt(c/2))
+    if print_flag:
+        print("Diffusion Constant: ", diff_const)
+        print("Current Normal Variance: ", np.sqrt(c/2))
     return func
