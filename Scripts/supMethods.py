@@ -50,6 +50,21 @@ def load_last_output(foldername):
     nh = scipy.sparse.load_npz(foldername + f"/sp_frame_nh{highest_numeric_value}.npz").todok()
     return highest_numeric_value, n, nh
 
+def load_outputs(foldername, t, add_fitness = False):
+    try:
+        n = scipy.sparse.load_npz(foldername + f"/sp_frame_n{t}.npz").todok()
+        nh = scipy.sparse.load_npz(foldername + f"/sp_frame_nh{t}.npz").todok()
+        if add_fitness:
+            f = scipy.sparse.load_npz(foldername + f"/sp_frame_f{t}.npz").todok()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"The output was not found at {t}")
+    
+    if add_fitness:
+        return n, nh, f
+
+    return n, nh
+
+
 def time_conv(st):
     return time.strftime("%H:%M:%S", time.gmtime(st))
 

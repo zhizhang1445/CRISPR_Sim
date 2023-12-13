@@ -33,6 +33,10 @@ def checkIfInEllipse(mean1, mean2, cov1, scale = 1) -> bool:
     
     if norm_dist <= np.power(scale, 2):
         return True
+    
+def get_Variances(cov):
+    eigval, eigvec = np.linalg.eigh(cov)
+
 
 def fit_unknown_GMM(index_nonzero_w_repeats,
                      n_components = 20, w = 10, reg_covar = 0):
@@ -130,28 +134,24 @@ def Sum_Normal(n, means, covs, counts):
     
     return sum_Normal
 
-def fit_GMM(n, params, sim_params, index_nonzero_w_repeats, cov_type = "full",
+def fit_GMM(n, params, sim_params, index_nonzero_w_repeats = [], cov_type = "full",
                      n_components = 1):
-
-    var_limit = params["D"]*4*sim_params["dt"]
+    
+    if len(index_nonzero_w_repeats) == 0:
+        index_nonzero_w_repeats = get_nonzero_w_repeats(n)
+    if len(index_nonzero_w_repeats) == 0:
+        raise ValueError("Fit GMM Failed")
 
     gaussian_estimator =  GaussianMixture(
                 n_components= n_components,
-                reg_covar=0,
                 init_params="k-means++",
-                max_iter=1500,
+                max_iter=4000,
                 covariance_type = cov_type,
             )
     gaussian_estimator.fit(index_nonzero_w_repeats)
 
     covs = gaussian_estimator.covariances_
     means = gaussian_estimator.means_
-
-    for cov in covs:
-        var_area = np.linalg.det(cov)
-        if var_area > var_limit:
-            return fit_GMM(n, params, sim_params, index_nonzero_w_repeats, 
-                           n_components=n_components+1)
     
     clusters = gaussian_estimator.predict(index_nonzero_w_repeats)
     _ , counts = np.unique(clusters, return_counts= True)

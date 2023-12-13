@@ -1,18 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import sparse
 import scipy
 import json
-import matplotlib as mpl
 import matplotlib.pyplot as plt
-import tqdm
+import sys
+import os
 
 from supMethods import load_last_output
 from trajsTree import make_Treelist, link_Treelists, save_Treelist
 from trajectory import get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
 from trajectoryVisual import make_frame, make_Gif, plot_Ellipses
 
-def get_tdomain_and_show_last_output(foldername, t0 = 0, margins = (-0.4, -0.4)):
+def get_tdomain_and_show_last_output(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4)):
     with open(foldername + "/params.json") as json_file:
         params = json.load(json_file)
     with open(foldername + "/sim_params.json") as json_file:
@@ -26,11 +25,12 @@ def get_tdomain_and_show_last_output(foldername, t0 = 0, margins = (-0.4, -0.4))
 
     tf, n_final, nh_final = load_last_output(foldername)
 
-    fig = plt.figure()
-    plt.contour(n_final.toarray().transpose(), cmap = "Reds")
-    plt.contour(nh_final.toarray().transpose(), cmap = "Blues")
-    plt.margins(margins[0], margins[1])
-    plt.show()
+    if to_plot:
+        fig = plt.figure()
+        plt.contour(n_final.toarray().transpose(), cmap = "Reds")
+        plt.contour(nh_final.toarray().transpose(), cmap = "Blues")
+        plt.margins(margins[0], margins[1])
+        plt.show()
 
     t_domain = np.arange(t0, tf, dt)
     return t_domain, foldername, margins
@@ -76,8 +76,43 @@ def create_both_Gifs(t_domain, foldername, margins):
         print("GMM plots made")
     return 1
 
-def main(foldername):
+def main(foldername, input_flag = True, margin = -0.4):
 
+    while input_flag:
+        t_domain, foldername, margins = get_tdomain_and_show_last_output(foldername,to_plot=input_flag, 
+                                                                         t0 = 0, margins = (margin, margin))
+
+        user_input = input("Please enter 'Yes[Y]', a float to resize margins (default -0.4) or 'No[N]' to exit \n").lower()
+        if user_input in {'yes', 'y'}:
+            break
+        elif user_input in {'no', 'n'}:
+            print("Command To Exit")
+            return 0
+        
+        else:
+            margin = float(user_input)
+
+    margins = (margin, margin)
+
+    if not input_flag:
+        t_domain, foldername, margins = get_tdomain_and_show_last_output(foldername,to_plot=input_flag, 
+                                                                         t0 = 0, margins = margins)
+    create_both_Gifs(t_domain, foldername, margins)
+    return 1
 
 if __name__ == "__main__":
-    pass
+    if len(sys.argv) > 1:
+        foldername = sys.argv[1]
+        input_flag = True
+        main(foldername, input_flag)
+
+    elif len(sys.argv) > 2:
+        foldername = sys.argv[1]
+        margin = float(sys.argv[2])
+        subfolders = [f.path for f in os.scandir(foldername) if f.is_dir()]
+        for folder in subfolders:
+            main(folder, input_flag=False, margin=margin)
+    else:
+        print("Missing folder")
+        pass
+    
