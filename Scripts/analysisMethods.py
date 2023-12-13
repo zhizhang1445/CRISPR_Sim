@@ -112,6 +112,7 @@ if __name__ == "__main__":
         subfolders = [f.path for f in os.scandir(foldername) if f.is_dir()]
         for folder in subfolders:
             main(folder, input_flag=False, margin=margin)
+            
     else:
         print("Missing folder")
         pass

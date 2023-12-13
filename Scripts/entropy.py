@@ -28,11 +28,12 @@ def compute_entropy_production_Gaussian(var, Diff_const, t, N = 1, dim = 2):
     return N*term
 
 def compute_entropy_production_2D_mutation(n_old, params, sim_params):
-    means, cov, count = fit_GMM(n_old, params, sim_params)
+    _, cov, count = fit_GMM(n_old, params, sim_params)
 
-    eigval, eigvec = np.linalg.eigh(cov.squeeze())
+    eigval, _ = np.linalg.eigh(cov.squeeze())
     Diff_const = params["D"]
-    entropy_mutation = compute_entropy_production_Gaussian(eigval[0], Diff_const, 1, N = count, dim = 1) + entropy_production_mutation(eigval[1], Diff_const, 1, N = count, dim = 1)
+    entropy_mutation = compute_entropy_production_Gaussian(eigval[0], Diff_const, 1, N = count, dim = 1) \
+                        + compute_entropy_production_Gaussian(eigval[1], Diff_const, 1, N = count, dim = 1)
     return entropy_mutation
 
 def compute_entropy_Gaussian(var, Diff_const, t, N = 1, dim =2):
