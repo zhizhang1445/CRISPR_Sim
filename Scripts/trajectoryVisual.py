@@ -88,7 +88,7 @@ def make_Gif(foldername, tdomain, typename = "time_plots"):
         frames.append(image)
 
     imageio.mimsave(f'./{foldername}/{typename}/Animation.gif', 
-                    frames, duration = 1000)
+                    frames)
 
 # def make_timeGif(foldername, t_domain):
 #     for t in t_domain:

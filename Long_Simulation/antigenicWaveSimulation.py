@@ -141,7 +141,7 @@ if __name__ == '__main__':
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                  1,
-        "foldername":"../Data_temp_name8",
+        "foldername":"../Data_temp_name9",
         "seed":                         0,
     }
     continue_flag = False
