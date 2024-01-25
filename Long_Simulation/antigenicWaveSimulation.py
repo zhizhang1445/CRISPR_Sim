@@ -7,127 +7,36 @@ import time
 import os
 import sys
 
-sys.path.insert(0, "../Scripts")
-from initMethods import *
-from coverage import *
-from altImmunity import *
-from immunity import *
-from fitness import *
-from mutation import *
-from formulas import compute_shift
-from supMethods import *
+# sys.path.insert(0, "../Scripts")
+# from initMethods import *
+# from coverage import *
+# from altImmunity import *
+# from immunity import *
+# from fitness import *
+# from mutation import *
+# from formulas import compute_shift
+# from supMethods import *
+# from randomHGT import *
 
-
-def main(params, sim_params):
-    np.random.seed(sim_params['seed'])
-    foldername = sim_params["foldername"]
-    shift_vector = [0,0] #This is unused if dt_exact_fitness is zero
-
-    if sim_params["continue"]:
-        try:
-            params, sim_params = read_json(foldername)
-            kernel_quarter = init_quarter_kernel(params, sim_params)
-            kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
-            t, n, nh = load_last_output(foldername)
-            nh_total = params["Nh"]
-            n_total = params["N"]
-            uc = params["uc"]
-            sigma = params["sigma"]
-
-            with open(foldername+'/runtime_stats.txt','a') as file:
-                file.write(f't: {t}| Restarted  | Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}\n')
-
-        except KeyError or (nh is None): #the folders were empty so better restart everything
-            sim_params["continue"] = False
-
-
-    if not sim_params["continue"]: #not an else statement because this also serves as error catch for the if statement
-        params, sim_params = init_cond(params, sim_params)
-        try:
-            write2json(foldername, params, sim_params)
-        except FileNotFoundError:
-            os.mkdir(foldername)
-            write2json(foldername, params, sim_params)
-
-        st = time.time()
-        n = init_guassian(params["N"], sim_params, "n")
-        nh = init_exptail(params["Nh"], params, sim_params, "nh")
-        kernel_quarter = init_quarter_kernel(params, sim_params)
-        kernel_exp = init_quarter_kernel(params, sim_params, type="Boltzmann")
-        ed = time.time()
-            
-        t = 0
-        nh_total = params["Nh"]
-        n_total = params["N"]
-        uc = params["uc"]
-        sigma = params["sigma"]
-
-        with open(foldername+'/runtime_stats.txt','w') as file:
-            file.write(f't: {t}| init_functions: {time_conv(ed-st)}| Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}\n')
-
-    while(t < sim_params["tf"]):
-
-        if t%sim_params["dt_snapshot"] == 0:
-            sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
-            sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
-
-        if t%sim_params["dt_exact_fitness"] == 0:
-            st1 = time.time()
-            p = elementwise_coverage(nh, n, kernel_quarter, params, sim_params)
-            st2 = time.time()
-            f = fitness_spacers(n, nh, p, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0
-            sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
-            f = norm_fitness(f, n, params, sim_params) #renormalize f
-
-        else:
-            st1 = time.time()
-            f = fitness_spacers_fast(f, shift_vector, params)
-
-            st2 = time.time()
-            f = norm_fitness(f, n, params, sim_params)
-
-        
-        n = virus_growth(n, f, params, sim_params) #update
-        
-        if (np.sum(n) <= 0) or (np.sum(n) >= (1/2)*np.sum(nh)):
-            with open(foldername+'/runtime_stats.txt','a') as file:
-                outstring = f"DEAD at: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
-                file.write(outstring)
-            return 1
-
-        st3 = time.time()
-        n = mutation(n, params, sim_params)
-
-        st4 = time.time()
-        nh_prev = nh
-        nh = immunity_update(nh_prev, n, params, sim_params)
-        shift_vector = compute_shift(nh, nh_prev, "max")
-
-        # nh_gain = immunity_gain_from_kernel(nh, n, kernel_exp, params, sim_params) #update nh
-        # nh = immunity_loss_uniform(nh_gain, n, params, sim_params)
-        ed = time.time()
-
-        with open(foldername+'/runtime_stats.txt','a') as file:
-            outstring = f"t: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
-            file.write(outstring)
-
-        t += sim_params["dt"]
-    return 1
+from antigenicWaveSimulationMethods import main as coEvoSimulation
 
 if __name__ == '__main__':
 
     params = { #parameters relevant for the equations
-        "Nh":             1E6,
-        "N0":             1E7, #This Will be updated by self-consitent solution
-        "R0":              20, 
-        "M":                1, #Also L, total number of spacers
-        "mu":             0.1, #mutation rate
-        "gamma_shape":     20, 
-        "Np":               0, #Number of Cas Protein
-        "dc":               3, #Required number of complexes to activate defence
-        "h":                4, #coordination coeff
-        "r":             2000, #cross-reactivity kernel
-        "beta":         0.000,
+        "Nh":                     1E6,
+        "N0":                     1E7, #This Will be updated by self-consitent solution
+        "R0":                      20, 
+        "M":                        1, #Also L, total number of spacers
+        "mu":                     0.1, #mutation rate
+        "gamma_shape":             20, 
+        "Np":                       0, #Number of Cas Protein
+        "dc":                       3, #Required number of complexes to activate defence
+        "h":                        4, #coordination coeff
+        "r":                     2000, #cross-reactivity kernel
+        "beta":                 0.000,
+        "rate_HGT":              0,
+        "HGT_bonus_acquisition": 5000,
+        "rate_recovery":          0.1,
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
         "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
@@ -141,7 +50,7 @@ if __name__ == '__main__':
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                  1,
-        "foldername":"../Data_temp_name9",
+        "foldername":   "../Data_temp_name11",
         "seed":                         0,
     }
     continue_flag = False
@@ -176,10 +85,13 @@ if __name__ == '__main__':
         else:
             ValueError("Error in arguments")
 
+    if sim_params["num_threads"] == 0 or n_seeds == 0:
+        raise ValueError("something wrong with the num threads or num seeds")
+
     params_list = []
     sim_params_list = []
     # list_to_sweep1 = [-1, -1.25, -1.5, -1.75, -2, -2.25, -2.5, -2.75, -3, -3.25, -3.5, -3.75]
-    list_to_sweep2 = [0, -0.01, -0.02, -0.05]
+    list_to_sweep2 = [0, -0.01, -0.02, -0.05, 0.01, 0.05, 0.1, 0.5]
 
     num_cores = multiprocessing.cpu_count()
     if not num_threads_set:
@@ -200,5 +112,5 @@ if __name__ == '__main__':
             params_list.append(deepcopy(params))
             sim_params_list.append(deepcopy(sim_params))
 
-    results = Parallel(n_jobs=len(params_list))(delayed(main)
+    results = Parallel(n_jobs=len(params_list))(delayed(coEvoSimulation)
             (params, sim_params) for params, sim_params in zip(params_list, sim_params_list))
