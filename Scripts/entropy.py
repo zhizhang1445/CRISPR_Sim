@@ -6,13 +6,24 @@ from supMethods import timeit
 from formulas import find_max_value_location
 from trajectory import fit_GMM
 
-def compute_entropy(array, k=1):
-    x_ind, y_ind = np.nonzero(array)    
+def compute_entropy(array, dim = 2, k=1):
+
+    if dim == 2:    
+        x_ind, y_ind = np.nonzero(array)    
+        
+        if scipy.sparse.issparse(array):
+            non_zero_values = array[x_ind, y_ind].toarray().squeeze()
+        else:
+            non_zero_values = array[x_ind, y_ind]
     
-    if scipy.sparse.issparse(array):
-        non_zero_values = array[x_ind, y_ind].toarray().squeeze()
-    else:
-        non_zero_values = array[x_ind, y_ind]
+    elif dim == 1:
+        x_ind = np.nonzero(array)    
+        
+        if scipy.sparse.issparse(array):
+            non_zero_values = array[x_ind].toarray().squeeze()
+        else:
+            non_zero_values = array[x_ind]
+
     entropy = k*np.sum(non_zero_values*np.log(non_zero_values))
     return (-1)*entropy
 
@@ -40,7 +51,7 @@ def compute_entropy_Gaussian(var, Diff_const, t, N = 1, dim =2):
     size_cor = N*np.log(N) if N !=1 else 0 
     return -size_cor + N*(dim/2)*(1+np.log((2*var+4*Diff_const*t)*np.pi))
 
-def compute_entropy_change(n_new, n_old, dt=1):
-    return (compute_entropy(n_new) - compute_entropy(n_old))*dt
+def compute_entropy_change(n_new, n_old, dim=2, dt=1):
+    return (compute_entropy(n_new, dim) - compute_entropy(n_old, dim))*dt
 
 

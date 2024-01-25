@@ -6,5 +6,6 @@
     ],
     "python.analysis.extraPaths": [
         "../Scripts"
-    ]
+    ],
+    "python.REPL.enableREPLSmartSend": false
 }
