@@ -123,8 +123,8 @@ def immunity_loss_uniform(nh, n, params, sim_params, num_to_remove = None):
             in zip(set_index_w_repeats, set_num_to_remove))
     nh = nh + np.sum(results, axis=0)
 
-    if np.abs(np.sum(nh) - Nh*M) >= 1 :
-        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
+    if np.abs(np.sum(nh) - Nh*M) > 1 :
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh), "M = ", M)
     
     min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
 

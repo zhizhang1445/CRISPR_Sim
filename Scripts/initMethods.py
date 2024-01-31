@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import scipy
 from joblib import Parallel, delayed
 from formulas import calc_diff_const
+from randomHGT import get_time_next_HGT
 
 def fill_parameters(params, sim_params):
     R0 = params["R0"]
@@ -62,6 +63,7 @@ def init_cond(params, sim_params, out_print = False):
     params["N0"] = params["N"] #update actual N
     sim_params["initial_var_n"] = sigma
     sim_params["initial_var_nh"] = np.sqrt(np.power(sigma, 2) + np.power(uc, 2))
+    sim_params["time_next_event"] = get_time_next_HGT(0, params, sim_params)
     return params, sim_params
 
 def init_guassian(init_num, sim_params, type = "n"):

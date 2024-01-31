@@ -64,59 +64,65 @@ def main(params, sim_params):
         uc = params["uc"]
         sigma = params["sigma"]
         M = params["M"]
-        sim_params["time_next_event"] = get_time_next_HGT(t, params, sim_params)
 
         with open(foldername+'/runtime_stats.txt','w') as file:
             file.write(f't: {t}| init_functions: {time_conv(ed-st)}| Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}| M: {M:.4f} \n')
 
-    while(t < sim_params["tf"]):
+    try:
+        while(t < sim_params["tf"]):
 
-        if t%sim_params["dt_snapshot"] == 0:
-            sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
-            sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
+            if t%sim_params["dt_snapshot"] == 0:
+                sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
+                sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
 
-        if t%sim_params["dt_exact_fitness"] == 0:
-            st1 = time.time()
-            p = elementwise_coverage(nh, n, kernel_conv, params, sim_params)
-            st2 = time.time()
-            f = fitness_spacers(n, nh, p, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0
-            sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
-            f = norm_fitness(f, n, params, sim_params) #renormalize f
+            if t%sim_params["dt_exact_fitness"] == 0:
+                st1 = time.time()
+                p = elementwise_coverage(nh, n, kernel_conv, params, sim_params)
+                st2 = time.time()
+                f = fitness_spacers(n, nh, p, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0
+                sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
+                f = norm_fitness(f, n, params, sim_params) #renormalize f
 
-        else:
-            st1 = time.time()
-            raise NotImplementedError("dt_fast_fitness better be 1")
-            f = fitness_spacers_fast(f, shift_vector, params)
+            else:
+                st1 = time.time()
+                raise NotImplementedError("dt_fast_fitness better be 1")
+                f = fitness_spacers_fast(f, shift_vector, params)
 
-            st2 = time.time()
-            f = norm_fitness(f, n, params, sim_params)
+                st2 = time.time()
+                f = norm_fitness(f, n, params, sim_params)
 
-        n = virus_growth(n, f, params, sim_params) #update
-        
-        if (np.sum(n) <= 0) or (np.sum(n) >= (1/2)*np.sum(nh)):
+            n = virus_growth(n, f, params, sim_params) #update
+            
+            if (np.sum(n) <= 0) or (np.sum(n) >= (1/2)*np.sum(nh)):
+                with open(foldername+'/runtime_stats.txt','a') as file:
+                    outstring = f"DEAD at: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
+                    file.write(outstring)
+                return 1
+
+            st3 = time.time()
+            n = mutation(n, params, sim_params)
+
+            st4 = time.time()
+            nh_prev = nh
+
+            params, sim_params, num_to_add, num_to_remove = HGT_logistic_event(t, n, params, sim_params)
+            nh_gain = immunity_gain_from_kernel(nh, n, kernel_immunity, params, sim_params, num_to_add) #update nh
+            nh = immunity_loss_uniform(nh_gain, n, params, sim_params, num_to_remove)
+            
+            diff_of_acquisition = num_to_add-num_to_remove
+            shift_vector = compute_shift(nh, nh_prev, "max")
+            ed = time.time()
+
             with open(foldername+'/runtime_stats.txt','a') as file:
-                outstring = f"DEAD at: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
+                M = params["M"]
+                outstring = f"t: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| M: {M:.4f}| Net_Acq_Diff: {diff_of_acquisition:.4f}| Shift Amount: {np.linalg.norm(shift_vector):.4f} \n"
                 file.write(outstring)
-            return 1
 
-        st3 = time.time()
-        n = mutation(n, params, sim_params)
+            t += sim_params["dt"]
 
-        st4 = time.time()
-        nh_prev = nh
+    except KeyboardInterrupt:
+        print(f"Stopped at time: {t}")
+        return 0
 
-        params, sim_params, num_to_add, num_to_remove = HGT_logistic_event(t, n, params, sim_params)
-        nh_gain = immunity_gain_from_kernel(nh, n, kernel_immunity, params, sim_params, num_to_add) #update nh
-        nh = immunity_loss_uniform(nh_gain, n, params, sim_params, num_to_remove)
-        
-        diff_of_acquisition = num_to_add-num_to_remove
-        shift_vector = compute_shift(nh, nh_prev, "max")
-        ed = time.time()
-
-        with open(foldername+'/runtime_stats.txt','a') as file:
-            outstring = f"t: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Net_Acq_Diff: {diff_of_acquisition:.4f}| Shift Amount: {np.linalg.norm(shift_vector):.4f} \n"
-            file.write(outstring)
-
-        t += sim_params["dt"]
     return 1
 
