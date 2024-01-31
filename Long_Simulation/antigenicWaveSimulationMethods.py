@@ -79,7 +79,7 @@ def main(params, sim_params):
                 st1 = time.time()
                 p = elementwise_coverage(nh, n, kernel_conv, params, sim_params)
                 st2 = time.time()
-                f = fitness_spacers(n, nh, p, params, sim_params) #f is now a masked array (where mask is where eff_R0 = 0
+                f = fitness_spacers(n, nh, p, params, sim_params)
                 sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
                 f = norm_fitness(f, n, params, sim_params) #renormalize f
 
@@ -120,7 +120,8 @@ def main(params, sim_params):
 
             t += sim_params["dt"]
 
-    except KeyboardInterrupt:
+    except KeyboardInterrupt or ValueError:
+        write2json(foldername, params, sim_params)
         print(f"Stopped at time: {t}")
         return 0
 

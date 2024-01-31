@@ -25,7 +25,7 @@ if __name__ == '__main__':
         "rate_HGT":                 0,
         "HGT_bonus_acq_ratio":      1,
         "rate_recovery":          0.1,
-        "HGT_type":                 0,
+        "HGT_type":                 1,
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
         "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                  1,
-        "foldername":   "../Data_HGT_rate",
+        "foldername":   "../Data_HGT_rate_type_2",
         "seed":                         0,
     }
     continue_flag = False
