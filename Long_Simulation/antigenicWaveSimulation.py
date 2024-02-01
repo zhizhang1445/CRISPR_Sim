@@ -31,15 +31,15 @@ if __name__ == '__main__':
         "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
         "xdomain":                   1000,
         "dx":                           1,
-        "tf":                       10000,
+        "tf":                        1000,
         "dt":                           1,
         "dt_exact_fitness":             1,
-        "dt_snapshot":                 25,
+        "dt_snapshot":                  1,
         "initial_mean_n":           [0,0],
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                  1,
-        "foldername":   "../Data_HGT_rate_type_2",
+        "foldername":   "../Data_HGT_rate_type_1",
         "seed":                         0,
     }
     continue_flag = False

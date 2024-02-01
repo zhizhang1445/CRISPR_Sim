@@ -42,7 +42,7 @@ def HGT_logistic_event(t, n, params, sim_params, toprint = False):
             num_to_remove = np.sum(n)
         
         if flag_acquisition == 1:
-            num_to_remove = np.sum(n) + tt_spacers_lost
+            num_to_remove = np.sum(n) - tt_spacers_lost
             if num_to_remove < 0:
                 num_to_remove = 0
             
