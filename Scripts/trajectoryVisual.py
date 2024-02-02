@@ -26,7 +26,7 @@ def make_frame(foldername, i, save = True, margins = (-0.45, -0.45)):
             os.mkdir(foldername+"/time_plots")
             plt.savefig(f'{foldername}/time_plots/img_{i}.png', 
                         transparent = False, facecolor = 'white')
-        plt.close()
+        plt.close("all")
 
 def generate_colors(num_colors):
     all_colors = list(mcolors.CSS4_COLORS.keys())
@@ -37,12 +37,13 @@ def make_ellipse(means, covariances, color = "teal"):
         covariances = np.eye(means.size)*covariances
 
     v, w = np.linalg.eigh(covariances)
+    v = v.squeeze(); w = w.squeeze()
     u = w[0] / np.linalg.norm(w[0])
     angle = np.arctan2(u[1], u[0])
     angle = 180 * angle / np.pi  # convert to degrees
     v = 2.0 * np.sqrt(2.0) * np.sqrt(v)
     ell = mpl.patches.Ellipse(
-        means, v[0], v[1], 180 + angle, color=color
+        means, v[0], v[1], angle = 180 + angle, color = color
     )
     return ell
 

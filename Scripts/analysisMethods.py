@@ -11,17 +11,18 @@ from trajsTree import make_Treelist, link_Treelists, save_Treelist
 from trajectory import get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
 from trajectoryVisual import make_frame, make_Gif, plot_Ellipses
 
-def get_tdomain_and_show_last_output(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4)):
+def get_tdomain_and_show_last_output(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4), dt = 0):
     with open(foldername + "/params.json") as json_file:
         params = json.load(json_file)
     with open(foldername + "/sim_params.json") as json_file:
         sim_params = json.load(json_file)
 
     t0 = 0
-    try:
-        dt = sim_params["dt_snapshot"]
-    except KeyError:
-        dt = sim_params["t_snapshot"]
+    if dt == 0:
+        try:
+            dt = sim_params["dt_snapshot"]
+        except KeyError:
+            dt = sim_params["t_snapshot"]
 
     tf, n_final, nh_final = load_last_output(foldername)
 
@@ -41,6 +42,7 @@ def create_both_Gifs(t_domain, foldername, margins):
     for t in t_domain:
         make_frame(foldername, t, save = True, margins=margins)
         t_domain_no_error.append(t)
+        plt.close("all")
 
     make_Gif(foldername, t_domain_no_error, typename = "time_plots")
     print("time plots made")
@@ -63,10 +65,15 @@ def create_both_Gifs(t_domain, foldername, margins):
 
             prev_list = link_Treelists(prev_list, next_list)
             prev_list = next_list
-            plot_Ellipses(n_i, t, means, covs, save = True,
-                        foldername = foldername, input_color = "teal", margins=(-0.42, -0.42))
+            try:
+                plot_Ellipses(n_i, t, means, covs, save = True,
+                        foldername = foldername, input_color = "teal", margins=margins)
+            except TypeError:
+                continue
             
             t_domain_no_error.append(t)
+
+            plt.close('all')
         except ValueError:
             print(t)
             break
@@ -76,11 +83,11 @@ def create_both_Gifs(t_domain, foldername, margins):
         print("GMM plots made")
     return 1
 
-def main(foldername, input_flag = True, margin = -0.4):
+def main(foldername, dt = 0, input_flag = True, margin = -0.4):
 
     while input_flag:
         t_domain, foldername, margins = get_tdomain_and_show_last_output(foldername,to_plot=input_flag, 
-                                                                         t0 = 0, margins = (margin, margin))
+                                                                         t0 = 0, margins = (margin, margin), dt = dt)
 
         user_input = input("Please enter 'Yes[Y]', a float to resize margins (default -0.4) or 'No[N]' to exit \n").lower()
         if user_input in {'yes', 'y'}:
@@ -96,22 +103,29 @@ def main(foldername, input_flag = True, margin = -0.4):
 
     if not input_flag:
         t_domain, foldername, margins = get_tdomain_and_show_last_output(foldername,to_plot=input_flag, 
-                                                                         t0 = 0, margins = margins)
+                                                                         t0 = 0, margins = margins, dt = dt)
     create_both_Gifs(t_domain, foldername, margins)
     return 1
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+
+    if len(sys.argv) == 2:
         foldername = sys.argv[1]
         input_flag = True
         main(foldername, input_flag)
 
-    elif len(sys.argv) > 2:
+    if len(sys.argv) > 3:
+        dt = int(sys.argv[3])
+    else:
+        dt = 0
+
+    if len(sys.argv) > 2:
         foldername = sys.argv[1]
         margin = float(sys.argv[2])
         subfolders = [f.path for f in os.scandir(foldername) if f.is_dir()]
         for folder in subfolders:
-            main(folder, input_flag=False, margin=margin)
+            main(folder, dt=dt, input_flag=False, margin=margin)
+    
             
     else:
         print("Missing folder")
