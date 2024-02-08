@@ -19,9 +19,9 @@ from supMethods import *
 from randomHGT import *
 
 
-def main(params, sim_params):
+def main(params, sim_params) -> int :
     np.random.seed(sim_params['seed'])
-    foldername = sim_params["foldername"]
+    foldername: str = sim_params["foldername"]
     shift_vector = [0,0] #This is unused if dt_exact_fitness is zero
 
     if sim_params["continue"]:
@@ -53,7 +53,7 @@ def main(params, sim_params):
 
         st = time.time()
         n = init_guassian(params["N"], sim_params, "n")
-        nh = init_exptail(params["Nh"], params, sim_params, "nh")
+        nh = init_exptail(params["Nh"]*params["M"], params, sim_params, "nh")
         kernel_conv = init_quarter_kernel(params, sim_params)
         kernel_immunity = init_quarter_kernel(params, sim_params, type="Boltzmann")
         ed = time.time()
@@ -76,7 +76,7 @@ def main(params, sim_params):
                 sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
 
             if t%sim_params["dt_exact_fitness"] == 0:
-                st1 = time.time()
+                str:float = time.time()
                 p = elementwise_coverage(nh, n, kernel_conv, params, sim_params)
                 st2 = time.time()
                 f = fitness_spacers(n, nh, p, params, sim_params)
