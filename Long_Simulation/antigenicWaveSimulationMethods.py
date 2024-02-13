@@ -26,6 +26,7 @@ def main(params, sim_params) -> int :
 
     if sim_params["continue"]:
         try:
+            st1 = time.time()
             params, sim_params = read_json(foldername)
             kernel_conv = init_quarter_kernel(params, sim_params)
             kernel_immunity = init_quarter_kernel(params, sim_params, type="Boltzmann")
@@ -51,9 +52,9 @@ def main(params, sim_params) -> int :
             os.mkdir(foldername)
             write2json(foldername, params, sim_params)
 
-        st = time.time()
+        st1 = time.time()
         n = init_guassian(params["N"], sim_params, "n")
-        nh = init_exptail(params["Nh"]*params["M"], params, sim_params, "nh")
+        nh = init_exptail(params["Nh"]*params["M0"], params, sim_params, "nh")
         kernel_conv = init_quarter_kernel(params, sim_params)
         kernel_immunity = init_quarter_kernel(params, sim_params, type="Boltzmann")
         ed = time.time()
@@ -63,10 +64,10 @@ def main(params, sim_params) -> int :
         n_total = params["N"]
         uc = params["uc"]
         sigma = params["sigma"]
-        M = params["M"]
+        M0 = params["M0"]
 
         with open(foldername+'/runtime_stats.txt','w') as file:
-            file.write(f't: {t}| init_functions: {time_conv(ed-st)}| Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}| M: {M:.4f} \n')
+            file.write(f't: {t}| init_functions: {time_conv(ed-st1)}| Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}| M0: {M:.4f} \n')
 
     try:
         while(t < sim_params["tf"]):
