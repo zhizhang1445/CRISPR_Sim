@@ -11,7 +11,7 @@ from trajsTree import make_Treelist, link_Treelists, save_Treelist
 from trajectory import get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
 from trajectoryVisual import make_frame, make_Gif, plot_Ellipses
 
-def get_tdomain_and_show_last_output(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4), dt = 0):
+def get_tdomain(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4), dt = 0):
     with open(foldername + "/params.json") as json_file:
         params = json.load(json_file)
     with open(foldername + "/sim_params.json") as json_file:
@@ -25,6 +25,7 @@ def get_tdomain_and_show_last_output(foldername, to_plot=True, t0 = 0, margins =
             dt = sim_params["t_snapshot"]
 
     tf, n_final, nh_final = load_last_output(foldername)
+    t_domain = np.arange(t0, tf, dt)
 
     if to_plot:
         fig = plt.figure()
@@ -33,8 +34,8 @@ def get_tdomain_and_show_last_output(foldername, to_plot=True, t0 = 0, margins =
         plt.margins(margins[0], margins[1])
         plt.show()
 
-    t_domain = np.arange(t0, tf, dt)
-    return t_domain, foldername, margins
+        return t_domain, foldername, margins
+    return t_domain
 
 def create_both_Gifs(t_domain, foldername, margins):
     t_domain_no_error = []
@@ -86,7 +87,7 @@ def create_both_Gifs(t_domain, foldername, margins):
 def main(foldername, dt = 0, input_flag = True, margin = -0.4):
 
     while input_flag:
-        t_domain, foldername, margins = get_tdomain_and_show_last_output(foldername,to_plot=input_flag, 
+        t_domain, foldername, margins = get_tdomain(foldername,to_plot=input_flag, 
                                                                          t0 = 0, margins = (margin, margin), dt = dt)
 
         user_input = input("Please enter 'Yes[Y]', a float to resize margins (default -0.4) or 'No[N]' to exit \n").lower()
@@ -102,7 +103,7 @@ def main(foldername, dt = 0, input_flag = True, margin = -0.4):
     margins = (margin, margin)
 
     if not input_flag:
-        t_domain, foldername, margins = get_tdomain_and_show_last_output(foldername,to_plot=input_flag, 
+        t_domain, foldername, margins = get_tdomain(foldername,to_plot=input_flag, 
                                                                          t0 = 0, margins = margins, dt = dt)
     create_both_Gifs(t_domain, foldername, margins)
     return 1
@@ -125,9 +126,7 @@ if __name__ == "__main__":
         subfolders = [f.path for f in os.scandir(foldername) if f.is_dir()]
         for folder in subfolders:
             main(folder, dt=dt, input_flag=False, margin=margin)
-    
-            
+                
     else:
-        print("Missing folder")
         pass
     

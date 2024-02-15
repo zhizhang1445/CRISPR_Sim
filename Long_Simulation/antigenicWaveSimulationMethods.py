@@ -21,7 +21,7 @@ from randomHGT import *
 
 def main(params, sim_params) -> int :
     np.random.seed(sim_params['seed'])
-    foldername: str = sim_params["foldername"]
+    foldername = sim_params["foldername"]
     shift_vector = [0,0] #This is unused if dt_exact_fitness is zero
 
     if sim_params["continue"]:
