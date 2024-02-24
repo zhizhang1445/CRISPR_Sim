@@ -34,7 +34,7 @@ def get_tdomain(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4), dt = 0
         plt.margins(margins[0], margins[1])
         plt.show()
 
-        return t_domain, foldername, margins
+        return t_domain
     return t_domain
 
 def create_both_Gifs(t_domain, foldername, margins):
@@ -87,13 +87,13 @@ def create_both_Gifs(t_domain, foldername, margins):
 def main(foldername, dt = 0, input_flag = True, margin = -0.4):
 
     while input_flag:
-        t_domain, foldername, margins = get_tdomain(foldername,to_plot=input_flag, 
+        t_domain= get_tdomain(foldername,to_plot=input_flag, 
                                                                          t0 = 0, margins = (margin, margin), dt = dt)
 
         user_input = input("Please enter 'Yes[Y]', a float to resize margins (default -0.4) or 'No[N]' to exit \n").lower()
-        if user_input in {'yes', 'y'}:
+        if user_input in {'yes', 'y', 'Yes'}:
             break
-        elif user_input in {'no', 'n'}:
+        elif user_input in {'no', 'n', 'No'}:
             print("Command To Exit")
             return 0
         
@@ -103,8 +103,7 @@ def main(foldername, dt = 0, input_flag = True, margin = -0.4):
     margins = (margin, margin)
 
     if not input_flag:
-        t_domain, foldername, margins = get_tdomain(foldername,to_plot=input_flag, 
-                                                                         t0 = 0, margins = margins, dt = dt)
+        t_domain = get_tdomain(foldername,to_plot=input_flag, t0 = 0, margins = margins, dt = dt)
     create_both_Gifs(t_domain, foldername, margins)
     return 1
 

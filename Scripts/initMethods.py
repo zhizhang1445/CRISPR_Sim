@@ -21,6 +21,9 @@ def fill_parameters(params, sim_params):
     params["tau"] = tau = M*Nh/N
 
     common_log = 24*np.log(N*np.power(D*np.power(s,2), 1/3))
+    # print(f"D: {D}| s:{s}| common_log: {common_log}")
+    if common_log < 0:
+        raise("INCREASE Nh YOUR EXPECTED POPULATION IS 0")
     sigma = np.power(D/s, 1/3)*np.power(common_log, 1/6)
     v0 = np.power(s, 1/3)*np.power(D, 2/3)*np.power(common_log, 1/3)
     uc = s*np.power(sigma, 4)/(4*D)

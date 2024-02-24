@@ -35,10 +35,10 @@ def main(params, sim_params) -> int :
             n_total = params["N"]
             uc = params["uc"]
             sigma = params["sigma"]
-            M = params["M"]
+            M0 = params["M0"]
 
             with open(foldername+'/runtime_stats.txt','a') as file:
-                file.write(f't: {t}| Restarted  | Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}| M: {M:.4f} \n')
+                file.write(f't: {t}| Restarted  | Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}| M: {M0:.4f} \n')
 
         except KeyError or (nh is None): #the folders were empty so better restart everything
             sim_params["continue"] = False
@@ -67,7 +67,7 @@ def main(params, sim_params) -> int :
         M0 = params["M0"]
 
         with open(foldername+'/runtime_stats.txt','w') as file:
-            file.write(f't: {t}| init_functions: {time_conv(ed-st1)}| Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}| M0: {M:.4f} \n')
+            file.write(f't: {t}| init_functions: {time_conv(ed-st1)}| Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}| M0: {M0:.4f} \n')
 
     try:
         while(t < sim_params["tf"]):
