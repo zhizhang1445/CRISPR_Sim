@@ -91,6 +91,7 @@ if __name__ == '__main__':
         sim_params["num_threads"] = num_cores_per_run
         print(f"Each Run is done with {num_cores_per_run} cores")
 
+    print(f"Simulation to be done with Num of Threads: {num_threads_set} for Num of Seeds: {n_seeds} and Num of Points: {len(list_to_sweep)}")
     for i, rate_HGT in enumerate(list_to_sweep): 
 
         for seed_num, seed in enumerate(seed_list):

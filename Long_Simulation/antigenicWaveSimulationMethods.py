@@ -52,7 +52,7 @@ def main(params, sim_params) -> int :
             os.mkdir(foldername)
             write2json(foldername, params, sim_params)
 
-        st1 = time.time()
+        st1: float = time.time()
         n = init_guassian(params["N"], sim_params, "n")
         nh = init_exptail(params["Nh"]*params["M0"], params, sim_params, "nh")
         kernel_conv = init_quarter_kernel(params, sim_params)

@@ -12,7 +12,7 @@ from trajsTree import *
 from supMethods import *
 from formulas import *
 
-def get_count_single(init_list, params, sim_params):
+def get_count_single(init_list, params, sim_params, start_index = 0):
     count_all_root = []
 
     for root_node in init_list:
@@ -22,7 +22,7 @@ def get_count_single(init_list, params, sim_params):
             if len(counts)>0:
                 count_all_root.extend(counts)
 
-    return  np.mean(count_all_root), np.var(count_all_root)
+    return  np.mean(count_all_root[start_index:]), np.var(count_all_root[start_index:])
 
 def get_var_single(init_list, params, sim_params):
     var_all_root = []

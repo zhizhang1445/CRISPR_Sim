@@ -11,19 +11,19 @@ from antigenicWaveSimulationMethods import main as coEvoSimulation
 if __name__ == '__main__':
 
     params = { #parameters relevant for the equations
-        "Nh":                     1E7,
+        "Nh":                     1E5,
         "N0":                     1E9, #This Will be updated by self-consitent solution
         "R0":                      20, 
         "M":                        5, #Also L, total number of spacers
-        "mu":                     0.1, #mutation rate
+        "mu":                      10, #mutation rate
         "gamma_shape":             20, 
-        "Np":                       0, #Number of Cas Protein
+        "Np":                       3, #Number of Cas Protein
         "dc":                       3, #Required number of complexes to activate defence
         "h":                        4, #coordination coeff
         "r":                     2000, #cross-reactivity kernel
         "beta":                     0,
         "rate_HGT":                 0,
-        "HGT_bonus_acq_ratio":      1,
+        "HGT_bonus_acq_ratio":    100,
         "rate_recovery":          0.1,
         "HGT_type":                 0,
     }
@@ -31,7 +31,7 @@ if __name__ == '__main__':
         "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
         "xdomain":                   1000,
         "dx":                           1,
-        "tf":                        4000,
+        "tf":                        2000,
         "dt":                           1,
         "dt_exact_fitness":             1,
         "dt_snapshot":                  1,
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
         "num_threads":                  1,
-        "foldername":   "../Data_HGT_rate_type0_Set_2",
+        "foldername":   "../Data_HGT_rate_Rapid2",
         "seed":                         0,
     }
     continue_flag = False
@@ -91,6 +91,7 @@ if __name__ == '__main__':
         sim_params["num_threads"] = num_cores_per_run
         print(f"Each Run is done with {num_cores_per_run} cores")
 
+    print(f"Simulation to be done with Num of Threads: {num_threads_set} for Num of Seeds: {n_seeds} and Num of Points: {len(list_to_sweep)}")
     for i, rate_HGT in enumerate(list_to_sweep): 
 
         for seed_num, seed in enumerate(seed_list):

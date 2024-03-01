@@ -38,7 +38,7 @@ if __name__ == '__main__':
         "initial_mean_n":           [0,0],
         "initial_mean_nh":          [0,0],
         "conv_size":                 4000,
-        "num_threads":                  1,
+        "num_threads":                 32,
         "foldername":   "../Data_Spacer_Size",
         "seed":                         0,
     }
@@ -49,7 +49,8 @@ if __name__ == '__main__':
     #the call is python3 antigenicWaveSimulation.py <num_cores> <num_seeds> <0 for restart or 1 for continue>
 
     if len(sys.argv) > 1:
-        sim_params["num_threads"] = int(sys.argv[2])
+        num_threads = int(sys.argv[1])
+        sim_params["num_threads"] = int(sys.argv[1])
         num_threads_set = True
 
     if len(sys.argv) > 2:
@@ -82,7 +83,7 @@ if __name__ == '__main__':
     sim_params_list = []
     # list_to_sweep1 = [-1, -1.25, -1.5, -1.75, -2, -2.25, -2.5, -2.75, -3, -3.25, -3.5, -3.75]
     # list_to_sweep2 = [0, -0.01, -0.02, -0.05, 0.01, 0.05, 0.1, 0.5]
-    list_to_sweep = [1, 5, 10, 25, 50, 100]
+    list_to_sweep = [1, 5, 10, 15, 20, 25, 50, 75, 100]
 
     num_cores = multiprocessing.cpu_count()
     if not num_threads_set:
@@ -91,6 +92,7 @@ if __name__ == '__main__':
         sim_params["num_threads"] = num_cores_per_run
         print(f"Each Run is done with {num_cores_per_run} cores")
 
+    print(f"Simulation to be done with Num of Threads: {num_threads} for Num of Seeds: {n_seeds} and Num of Points: {len(list_to_sweep)}")
     for i, M in enumerate(list_to_sweep): 
 
         for seed_num, seed in enumerate(seed_list):
