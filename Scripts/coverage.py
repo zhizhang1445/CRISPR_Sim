@@ -81,7 +81,7 @@ def split_coverage(nh, n, kernel, params, sim_params): #TODO This is already par
 
     return output/params["M"]
 
-def elementwise_coverage(nh, n, kernel_quarter, params, sim_params):
+def elementwise_coverage(nh, n, kernel_quarter, params, sim_params, print_progress = False):
     conv_size = sim_params["conv_size"]
     Nh = params["Nh"]
     M = params["M"]
@@ -94,9 +94,13 @@ def elementwise_coverage(nh, n, kernel_quarter, params, sim_params):
     y_nh_sets = np.array_split(y_ind_nh, num_threads)
 
     input_h = np.divide(nh, Nh)
+    tt_num_of_ind = len(x_ind_nh)
 
     def convolve_subset(x_ind_nh, y_ind_nh):
         res = scipy.sparse.dok_matrix(nh.shape, dtype=float)
+        if print_progress:
+            ind_nh_left = tt_num_of_ind
+
         for x_nh, y_nh in zip(x_ind_nh, y_ind_nh):
             value = input_h[x_nh, y_nh]
 
@@ -115,6 +119,10 @@ def elementwise_coverage(nh, n, kernel_quarter, params, sim_params):
                     break
 
                 res[x_n, y_n] += value*interaction
+
+            if print_progress:
+                print(f"Number of nh index left: {ind_nh_left}")
+                ind_nh_left -= 1
         return res
 
     results = Parallel(n_jobs=num_threads)(delayed(convolve_subset)
