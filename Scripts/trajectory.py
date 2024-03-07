@@ -1,9 +1,11 @@
+from operator import mul
 import numpy as np
 import scipy
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from sklearn.mixture import BayesianGaussianMixture, GaussianMixture
+from scipy.stats import multivariate_normal
 from trajectoryVisual import make_ellipse
 from formulas import calc_diff_const
 
@@ -19,10 +21,10 @@ def get_nonzero_w_repeats(n_i):
 def get_nonzero_no_repeats(n_i):
     x_ind, y_ind = np.nonzero(n_i)
     nonzero_values = [n_i[index] for index in zip(x_ind, y_ind)]
-    index_nonzero_w_repeats = []
+    index_nonzero_w_no_repeats = []
     for index in zip(x_ind, y_ind):
-        index_nonzero_w_repeats.append(index)
-    return nonzero_values, index_nonzero_w_repeats
+        index_nonzero_w_no_repeats.append(index)
+    return nonzero_values, index_nonzero_w_no_repeats
 
 def checkIfInEllipse(mean1, mean2, cov1, scale = 1) -> bool:
     eigval, eigvec = np.linalg.eigh(cov1)
@@ -33,10 +35,23 @@ def checkIfInEllipse(mean1, mean2, cov1, scale = 1) -> bool:
     
     if norm_dist <= np.power(scale, 2):
         return True
-    
-def get_Variances(cov):
-    eigval, eigvec = np.linalg.eigh(cov)
 
+def issquare(m):
+    return m.shape[0] == m.shape[1]
+
+def get_Variances(cov, vectors = None):
+    if vectors is None:
+        eigval, eigvec = np.linalg.eigh(cov)
+        return eigval
+    else:
+        if issquare(vectors):
+            projected = np.matmul(cov, vectors)
+            eigval, eigvec = np.linalg.eigh(projected)
+            return eigval
+        else:
+            projected = np.matmul(cov, vectors)
+            eigval, eigvec = np.linalg.eigh(projected)
+            return eigval
 
 def fit_unknown_GMM(index_nonzero_w_repeats,
                      n_components = 20, w = 10, reg_covar = 0):
@@ -86,56 +101,54 @@ def find_redudant(means, covs, counts, scale = np.sqrt(2)):
                 to_join[j] = []
     return to_join, true_count
 
-def reduce_GMM(means, covs, counts, scale = np.sqrt(2)):
-    to_join, true_count = find_redudant(means, covs, counts, scale)
+def fit_GMM_unknown_components(n, params, sim_params, index_nonzero_w_repeats = [], 
+                               num_components_max = 9, scale = np.sqrt(2), plot_chi_sq = False):
+    chi_sq_list = []
 
-    reduced_means = []
-    reduced_covs = []
-    reduced_counts = []
-
-    for i in true_count.nonzero()[0]:
-        if true_count[i] == 0:
-            continue
-
-        true_mean = 0
-        for j in to_join[i]:
-            true_mean += means[j]*counts[j]
-        true_mean = true_mean/true_count[i]
-        
-        aprox_cov = np.zeros_like(covs[i])
-        for j in to_join[i]:
-            dist = np.diag(means[j]-true_mean)
-            aprox_cov += (covs[j]+dist)*counts[j]
-        aprox_cov = aprox_cov/true_count[i]
-
-        reduced_means.append(true_mean)
-        reduced_covs.append(aprox_cov)
-        reduced_counts.append(true_count[i])
-
-    return reduced_means, reduced_covs, reduced_counts
-
-def Multivar_Normal(x, mean, cov, count):
-    diff = x-mean
-    Mahalanobis = np.matmul(diff.transpose(), np.matmul(cov, diff))
-    pdf = np.exp((-1/2)*Mahalanobis)
-    norm = np.sqrt(np.power(2*np.pi, 2)*np.linalg.det(cov))
-    pdf = pdf/norm
-    return pdf*count
-
-def Sum_Normal(n, means, covs, counts):
-    sum_Normal = scipy.sparse.dok_matrix(n.shape)
-    x_inds, y_inds = n.nonzero()
-
-    for mean, cov, count in zip(means, covs, counts):
-        for x_ind, y_ind in zip(x_inds, y_inds):
-            sum_Normal[x_ind, y_ind] += Multivar_Normal([x_ind, y_ind], 
-                                                    mean, cov, count)
-        return sum_Normal
+    if len(index_nonzero_w_repeats) == 0:
+        index_nonzero_w_repeats = get_nonzero_w_repeats(n)
+    if len(index_nonzero_w_repeats) == 0:
+        raise ValueError("Fit GMM Failed")
     
-    return sum_Normal
+    if num_components_max > 0:
+        for n_component in range(1, num_components_max):
+            means, covs, counts, chi_sq = fit_GMM(n, params, 
+                                                  sim_params, index_nonzero_w_repeats=index_nonzero_w_repeats, 
+                                                  n_components=n_component, return_chi_sq=True)
+            chi_sq_list.append(chi_sq)
+
+    means, covs, counts, chi_sq = fit_GMM(n, params, 
+                                          sim_params, index_nonzero_w_repeats = index_nonzero_w_repeats, 
+                                          cov_type = "full", n_components = num_components_max, return_chi_sq = True)
+    chi_sq_list.append(chi_sq)
+
+    index_closest_to_1 = np.abs(np.array(chi_sq_list).squeeze() - 1).argmin()    
+    n_component = index_closest_to_1+1
+
+    if plot_chi_sq:
+        comp_range = np.arange(1, num_components_max+1)
+        plt.figure()
+        plt.plot(comp_range, chi_sq_list)
+        plt.title("Chi Square vs Num of Clusters")
+        plt.xlabel("Num of Components")
+        plt.ylabel("Reduced Chi Squared")
+
+    means, covs, counts= fit_GMM(n, params, 
+                                                  sim_params, index_nonzero_w_repeats=index_nonzero_w_repeats, 
+                                                  n_components=n_component, return_chi_sq=False)
+    
+    if scale > 0:
+        _, true_count = find_redudant(means, covs, counts, scale)
+        n_component = np.count_nonzero(true_count)
+
+        means, covs, counts= fit_GMM(n, params, 
+                                                  sim_params, index_nonzero_w_repeats=index_nonzero_w_repeats, 
+                                                  n_components=n_component, return_chi_sq=False)
+    return means, covs, counts
+
 
 def fit_GMM(n, params, sim_params, index_nonzero_w_repeats = [], cov_type = "full",
-                     n_components = 1):
+                     n_components = 1, return_chi_sq = False):
     
     if len(index_nonzero_w_repeats) == 0:
         index_nonzero_w_repeats = get_nonzero_w_repeats(n)
@@ -149,13 +162,35 @@ def fit_GMM(n, params, sim_params, index_nonzero_w_repeats = [], cov_type = "ful
                 covariance_type = cov_type,
             )
     gaussian_estimator.fit(index_nonzero_w_repeats)
-
+    
     covs = gaussian_estimator.covariances_
     means = gaussian_estimator.means_
     
     clusters = gaussian_estimator.predict(index_nonzero_w_repeats)
     _ , counts = np.unique(clusters, return_counts= True)
 
-    return means, covs, counts
+    if not return_chi_sq:
+        return means, covs, counts
+
+    nonzero_val, nonzero_ind = get_nonzero_no_repeats(n)
+    indexes_cluster_assigned = gaussian_estimator.predict(nonzero_ind)
+    tt_number = np.sum(clusters)
+
+    chi_sq = 0
+    for val, ind, index_of_cluster in zip(nonzero_val, nonzero_ind, indexes_cluster_assigned):
+        mean = means[index_of_cluster]
+        cov = covs[index_of_cluster]
+        count = counts[index_of_cluster]
+
+        if count > 0 and np.linalg.det(cov) > 0:
+            rv = multivariate_normal(mean, cov)
+            pred = count*rv.pdf(ind)/tt_number
+            diff = np.power(val - pred, 2)/np.linalg.det(cov)
+            chi_sq += np.sum(diff)
+
+    n_deg_freedom = len(nonzero_val) - (n_components*5)
+    chi_sq_red = chi_sq/n_deg_freedom
+
+    return means, covs, counts, chi_sq_red
 
 

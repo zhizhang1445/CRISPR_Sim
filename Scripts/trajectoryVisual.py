@@ -6,7 +6,12 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import imageio
 import os
-
+def plot_sparse(n, title = None, margins = (-0.45, -0.45)):
+    plt.figure()
+    plt.margins(margins[0], margins[1])
+    plt.contourf(n.toarray().transpose(), cmap = "Reds")
+    if title is not None:
+        plt.title(title)
 
 def make_frame(foldername, i, save = True, margins = (-0.45, -0.45)):
     n_i = scipy.sparse.load_npz(foldername+f"/sp_frame_n{i}.npz")

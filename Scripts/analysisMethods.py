@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 import sys
 import os
 
-from supMethods import load_last_output
+from supMethods import load_last_output, read_json
 from trajsTree import make_Treelist, link_Treelists, save_Treelist
-from trajectory import get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
+from trajectory import fit_GMM_unknown_components, get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
 from trajectoryVisual import make_frame, make_Gif, plot_Ellipses
 
 def get_tdomain(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4), dt = 0):
@@ -46,6 +46,7 @@ def create_both_Gifs(t_domain, foldername, margins):
         plt.close("all")
 
     make_Gif(foldername, t_domain_no_error, typename = "time_plots")
+    params, sim_params = read_json(foldername)
     print("time plots made")
 
     t_domain_no_error = []
@@ -53,9 +54,7 @@ def create_both_Gifs(t_domain, foldername, margins):
         try:
             n_i = scipy.sparse.load_npz(foldername+f"/sp_frame_n{t}.npz").todok()
             indexes = get_nonzero_w_repeats(n_i)
-            means_gmm, covs_gmm, counts_gmm = fit_unknown_GMM(indexes,n_components=1, 
-                                                            w = 1000, reg_covar=1e8)
-            means, covs, counts = reduce_GMM(means_gmm, covs_gmm, counts_gmm)
+            means, covs, counts = fit_GMM_unknown_components(n_i, params, sim_params, indexes, scale = np.sqrt(2))
 
             next_list = make_Treelist(t, means, covs, counts)
     
