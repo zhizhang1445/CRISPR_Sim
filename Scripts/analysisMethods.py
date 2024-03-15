@@ -8,7 +8,7 @@ import os
 
 from supMethods import load_last_output, read_json
 from trajsTree import make_Treelist, link_Treelists, save_Treelist
-from trajectory import fit_GMM_unknown_components, get_nonzero_w_repeats, fit_unknown_GMM, reduce_GMM
+from trajectory import fit_GMM_unknown_components, get_nonzero_w_repeats, fit_unknown_GMM
 from trajectoryVisual import make_frame, make_Gif, plot_Ellipses
 
 def get_tdomain(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4), dt = 0):
@@ -57,7 +57,6 @@ def create_both_Gifs(t_domain, foldername, margins):
             means, covs, counts = fit_GMM_unknown_components(n_i, params, sim_params, indexes, scale = np.sqrt(2))
 
             next_list = make_Treelist(t, means, covs, counts)
-    
             if t == t_domain[0]:
                 init_list = next_list
                 prev_list = next_list

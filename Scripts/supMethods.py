@@ -109,3 +109,14 @@ def extract_xy(list) : #if you have a list [[x0,y0], [x1, y1], ...] and you want
 
     return x_val, y_val
 
+def normalize_Array(array_input, norm = 1):
+    try:
+        output = array_input/np.linalg.norm(array_input)
+        output = output*norm
+    except TypeError:
+        output = []
+        for a in array_input:
+            output_single = a/np.linalg.norm(a)
+            output.append(output_single*norm)
+    
+    return output
