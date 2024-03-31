@@ -2,7 +2,7 @@
 **/**.npz
 **/test*
 **/__pycache__
-/.vscode
+.vscode
 **/**.pyc
 **.png
 **.gif
