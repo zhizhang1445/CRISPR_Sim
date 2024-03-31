@@ -1,23 +1,80 @@
 import numpy as np
-from joblib import Parallel, delayed
 import multiprocessing
 from scipy import sparse
 from copy import deepcopy
 import time
 import os
 import sys
+import random
 
 sys.path.insert(0, "../Scripts")
-from initMethods import *
-from coverage import *
-from altImmunity import *
-from immunity import *
-from fitness import *
-from mutation import *
+from initMethods import init_cond, init_exptail, init_quarter_kernel, init_guassian
+from coverage import elementwise_coverage
+from altImmunity import immunity_gain_from_kernel, immunity_loss_uniform
+from immunity import immunity_update
+from fitness import virus_growth, norm_fitness, fitness_spacers
+from mutation import mutation
 from formulas import compute_shift
-from supMethods import *
-from randomHGT import *
+from supMethods import read_json, load_last_output, write2json, time_conv
+from randomHGT import get_time_next_HGT, HGT_logistic_event
 
+def make_paramslists(params, sim_params, sweep_params: str, list_to_sweep: list):
+    num_threads_set = False
+    n_seeds = 1
+    foldername = sim_params["foldername"]
+    #the call is python3 antigenicWaveSimulation.py <num_cores> <num_seeds> <0 for restart or 1 for continue>
+
+    if len(sys.argv) > 1:
+        sim_params["num_threads"] = int(sys.argv[2])
+        num_threads_set = True
+
+    if len(sys.argv) > 2:
+        n_seeds = int(sys.argv[2])
+
+    if len(sys.argv) > 3:
+        if int(sys.argv[3]) == 1:
+            if os.path.isdir(foldername):
+                print("Continuing where we left off")
+                sim_params["continue"] = True
+
+            else:
+                os.mkdir(foldername)
+                print("Created new folder: ", foldername)
+                sim_params["continue"] = False
+    
+        elif int(sys.argv[3]) == 0:
+            sim_params["continue"] = False
+        else:
+            ValueError("Error in arguments")
+
+    if sim_params["num_threads"] == 0 or n_seeds == 0:
+        raise ValueError("something wrong with the num threads or num seeds")
+
+    seed_list = random.sample(range(0, 255), n_seeds)
+    params_list = []
+    sim_params_list = []
+
+    num_cores = multiprocessing.cpu_count()
+    if not num_threads_set:
+        best_ratio = int(num_cores // (len(list_to_sweep)*n_seeds))
+        num_cores_per_run = best_ratio if best_ratio >= 1 else 1
+        sim_params["num_threads"] = num_cores_per_run
+        print(f"Each Run is done with {num_cores_per_run} cores")
+
+    print(f"Simulation to be done with Num of Threads: {num_threads_set} for Num of Seeds: {n_seeds} and Num of Points: {len(list_to_sweep)}")
+    for i, sweep_itr in enumerate(list_to_sweep): 
+
+        for seed_num, seed in enumerate(seed_list):
+            params[sweep_params] = sweep_itr
+            sim_params["seed"] = seed
+            sim_params["foldername"] = foldername + f"/{sweep_params}_{sweep_itr}_seed{seed_num}"
+
+            if not os.path.exists(sim_params["foldername"]):
+                os.mkdir(sim_params["foldername"])
+
+            params_list.append(deepcopy(params))
+            sim_params_list.append(deepcopy(sim_params))
+    return params_list, sim_params_list
 
 def main(params, sim_params) -> int :
     np.random.seed(sim_params['seed'])
@@ -76,21 +133,12 @@ def main(params, sim_params) -> int :
                 sparse.save_npz(foldername+f"/sp_frame_n{t}",n.tocoo())
                 sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
 
-            if t%sim_params["dt_exact_fitness"] == 0:
-                str:float = time.time()
-                p = elementwise_coverage(nh, n, kernel_conv, params, sim_params)
-                st2 = time.time()
-                f = fitness_spacers(n, nh, p, params, sim_params)
-                sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
-                f = norm_fitness(f, n, params, sim_params) #renormalize f
-
-            else:
-                st1 = time.time()
-                raise NotImplementedError("dt_fast_fitness better be 1")
-                f = fitness_spacers_fast(f, shift_vector, params)
-
-                st2 = time.time()
-                f = norm_fitness(f, n, params, sim_params)
+            st1:float = time.time()
+            p = elementwise_coverage(nh, n, kernel_conv, params, sim_params)
+            st2 = time.time()
+            f = fitness_spacers(n, nh, p, params, sim_params)
+            sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
+            f = norm_fitness(f, n, params, sim_params) #renormalize f
 
             n = virus_growth(n, f, params, sim_params) #update
             
@@ -125,6 +173,4 @@ def main(params, sim_params) -> int :
         write2json(foldername, params, sim_params)
         print(f"Stopped at time: {t}")
         return 0
-
     return 1
-

@@ -68,7 +68,6 @@ def load_outputs(foldername, t, add_fitness = False):
 
     return n, nh
 
-
 def time_conv(st):
     return time.strftime("%H:%M:%S", time.gmtime(st))
 
@@ -124,3 +123,11 @@ def normalize_Array(array_input, norm = 1):
             output.append(output_single*norm)
     
     return output
+
+def average_of_pairs(arr):
+    averages = []
+    for i in range(0, len(arr)-1, 1):
+        average = (arr[i] + arr[i+1]) / 2.0
+        averages.append(average)
+    return np.array(averages)
+

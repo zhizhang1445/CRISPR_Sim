@@ -103,12 +103,6 @@ def running_median_filter(signal, window_size, padding = 'symmetric'):
     return trimmed_signal
 
 
-def average_of_pairs(arr):
-    averages = []
-    for i in range(0, len(arr)-1, 1):
-        average = (arr[i] + arr[i+1]) / 2.0
-        averages.append(average)
-    return np.array(averages)
 
 def calc_diff_const(params, sim_params):
     dx = sim_params["dx"]

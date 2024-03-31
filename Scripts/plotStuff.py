@@ -6,11 +6,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import os
 
-from trajectory import *
-from trajectoryVisual import *
-from trajsTree import *
-from supMethods import *
-from formulas import *
+from trajsTree import TreeNode
+from supMethods import extract_xy, average_of_pairs
+from formulas import calculate_FisherVelocity, calculate_velocity, calculate_var
 
 def get_count_single(init_list, params, sim_params, start_index = 0, to_plot = False, to_save_folder = None):
     count_all_root = []
@@ -42,7 +40,7 @@ def get_var_single(init_list, params, sim_params, to_plot = False, to_save_folde
     var_T_all_root = []
     var_P_all_root = []
     if to_plot:
-        fig, ax = plt.subplots(1,2)
+        fig, ax = plt.subplots(2,1)
 
     for root_node in init_list:
         for trajs in root_node.get_all_traversals():
@@ -58,7 +56,7 @@ def get_var_single(init_list, params, sim_params, to_plot = False, to_save_folde
                 var_P_all_root.extend(var_parallel)
                 if to_plot:
                     ax[0].plot(time, var_parallel)
-                    ax[1].plot(time, var_parallel)
+                    ax[1].plot(time, var_transverse)
 
     if to_plot:
         ax[0].set_title("Parallel Variance")
@@ -109,10 +107,10 @@ def plot_velocity_single(init_list, params, sim_params, to_plot = False, to_save
                 if to_plot:
                     plt.plot(time_avg, v_obs, color = 'teal')
                     plt.xlabel("Time")
-                    plt.ylabel("velocity")
+                    plt.ylabel("Velocity")
 
     if to_plot:
-        plt.title("Parallel Variance")
+        plt.title("Observed Velocity")
 
     if to_save_folder is not None:
        plt.savefig(to_save_folder + "/velocities.png")

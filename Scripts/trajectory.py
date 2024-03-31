@@ -113,7 +113,7 @@ def find_redudant(means, covs, counts, scale = np.sqrt(2)):
     for i in range(len(means)):
         for j in range(len(means)):
             if i == j: continue
-
+            
             avg_cov = (covs[i]*counts[i]+covs[j]*counts[j])
             avg_cov = avg_cov/(counts[i]+counts[j])
 

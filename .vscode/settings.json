@@ -3,6 +3,7 @@
     "python.analysis.typeCheckingMode": "off",
     "python.autoComplete.extraPaths": [
         "./Scripts/",
+        "../Scripts/",
         ".CRISPR_Sim/Scripts/"
     ],
     "python.analysis.extraPaths": [

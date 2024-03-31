@@ -7,6 +7,7 @@ import os
 import sys
 
 from antigenicWaveSimulationMethods import main as coEvoSimulation
+from antigenicWaveSimulationMethods import make_paramslists
 
 if __name__ == '__main__':
 
@@ -42,69 +43,9 @@ if __name__ == '__main__':
         "foldername":   "../Data_Spacer_Size",
         "seed":                         0,
     }
-    continue_flag = False
-    num_threads_set = False
-    n_seeds = 1
-    foldername = sim_params["foldername"]
-    #the call is python3 antigenicWaveSimulation.py <num_cores> <num_seeds> <0 for restart or 1 for continue>
 
-    if len(sys.argv) > 1:
-        num_threads = int(sys.argv[1])
-        sim_params["num_threads"] = int(sys.argv[1])
-        num_threads_set = True
-
-    if len(sys.argv) > 2:
-        n_seeds = int(sys.argv[2])
-
-    if len(sys.argv) > 3:
-        if int(sys.argv[3]) == 1:
-            if os.path.isdir(foldername):
-                continue_flag = True
-                print("Continuing where we left off")
-                sim_params["continue"] = True
-
-            else:
-                os.mkdir(foldername)
-                print("Created new folder: ", foldername)
-                continue_flag = False
-                sim_params["continue"] = False
-    
-        elif int(sys.argv[3]) == 0:
-            continue_flag = False
-            sim_params["continue"] = False
-        else:
-            ValueError("Error in arguments")
-
-    if sim_params["num_threads"] == 0 or n_seeds == 0:
-        raise ValueError("something wrong with the num threads or num seeds")
-
-    seed_list = random.sample(range(0, 255), n_seeds)
-    params_list = []
-    sim_params_list = []
-    # list_to_sweep1 = [-1, -1.25, -1.5, -1.75, -2, -2.25, -2.5, -2.75, -3, -3.25, -3.5, -3.75]
-    # list_to_sweep2 = [0, -0.01, -0.02, -0.05, 0.01, 0.05, 0.1, 0.5]
     list_to_sweep = [1, 5, 10, 15, 20, 25, 50, 75, 100]
-
-    num_cores = multiprocessing.cpu_count()
-    if not num_threads_set:
-        best_ratio = int(num_cores // (len(list_to_sweep)*n_seeds))
-        num_cores_per_run = best_ratio if best_ratio >= 1 else 1
-        sim_params["num_threads"] = num_cores_per_run
-        print(f"Each Run is done with {num_cores_per_run} cores")
-
-    print(f"Simulation to be done with Num of Threads: {num_threads} for Num of Seeds: {n_seeds} and Num of Points: {len(list_to_sweep)}")
-    for i, M in enumerate(list_to_sweep): 
-
-        for seed_num, seed in enumerate(seed_list):
-            params["M"] = M
-            sim_params["seed"] = random.randint(0, 255)
-            sim_params["foldername"] = foldername + f"/M_size_{M}_seed{seed_num}"
-
-            if not os.path.exists(sim_params["foldername"]):
-                os.mkdir(sim_params["foldername"])
-
-            params_list.append(deepcopy(params))
-            sim_params_list.append(deepcopy(sim_params))
+    params_list, sim_params_list = make_paramslists(params, sim_params, "M", list_to_sweep)
 
     try:
         results = Parallel(n_jobs=len(params_list))(delayed(coEvoSimulation)
