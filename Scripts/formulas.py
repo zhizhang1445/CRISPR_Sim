@@ -102,6 +102,7 @@ def running_median_filter(signal, window_size, padding = 'symmetric'):
     trimmed_signal = filtered_signal[pad_width:-pad_width]
     return trimmed_signal
 
+
 def average_of_pairs(arr):
     averages = []
     for i in range(0, len(arr)-1, 1):

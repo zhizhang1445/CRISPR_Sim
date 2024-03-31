@@ -6,12 +6,16 @@ import time
 from functools import wraps
 import matplotlib.colors as mcolors
 
-def write2json(name, params, sim_params):
+def write2json(name, params, sim_params, results = None):
     with open(name + '/params.json', 'w') as fp:
         json.dump(params, fp)
 
     with open(name + '/sim_params.json', 'w') as fp:
         json.dump(sim_params, fp)
+
+    if results is not None:
+        with open(name + '/results.json', 'w') as fp:
+            json.dump(results, fp)
 
 def read_json(foldername):
     params = {}
@@ -109,3 +113,14 @@ def extract_xy(list) : #if you have a list [[x0,y0], [x1, y1], ...] and you want
 
     return x_val, y_val
 
+def normalize_Array(array_input, norm = 1):
+    try:
+        output = array_input/np.linalg.norm(array_input)
+        output = output*norm
+    except TypeError:
+        output = []
+        for a in array_input:
+            output_single = a/np.linalg.norm(a)
+            output.append(output_single*norm)
+    
+    return output

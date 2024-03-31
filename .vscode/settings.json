@@ -6,9 +6,13 @@
         ".CRISPR_Sim/Scripts/"
     ],
     "python.analysis.extraPaths": [
+<<<<<<< HEAD
         "${workspaceFolder}/Scripts/",
         "../Scripts",
         "./Scripts"
+=======
+        "../Scripts",
+>>>>>>> 6aa22a4ab8bebf89094971f6f042e206acb4637d
     ],
     "python.REPL.enableREPLSmartSend": false
 }

@@ -1,4 +1,5 @@
 from operator import mul
+from re import T
 import numpy as np
 import scipy
 import numpy as np
@@ -6,6 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from sklearn.mixture import BayesianGaussianMixture, GaussianMixture
 from scipy.stats import multivariate_normal
+from supMethods import normalize_Array
 from trajectoryVisual import make_ellipse
 from formulas import calc_diff_const
 
@@ -37,21 +39,43 @@ def checkIfInEllipse(mean1, mean2, cov1, scale = 1) -> bool:
         return True
 
 def issquare(m):
-    return m.shape[0] == m.shape[1]
+    try:
+        m.shape
+        return m.shape[0] == m.shape[1]
+    except IndexError or AttributeError or TypeError:
+        return False
 
 def get_Variances(cov, vectors = None):
-    if vectors is None:
+    if vectors is None or np.linalg.norm(vectors) < 0.01:
         eigval, eigvec = np.linalg.eigh(cov)
         return eigval
+
     else:
+        if np.abs(np.linalg.norm(vectors)-1) > 0.01:
+            vectors = normalize_Array(vectors)
+
         if issquare(vectors):
             projected = np.matmul(cov, vectors)
             eigval, eigvec = np.linalg.eigh(projected)
             return eigval
         else:
-            projected = np.matmul(cov, vectors)
-            eigval, eigvec = np.linalg.eigh(projected)
-            return eigval
+            try:
+                projected = np.matmul(cov, vectors)
+            except IndexError:
+                projected = np.matmul(cov, vectors.transpose())
+            eigval_inline  = np.sum(np.abs(projected))
+
+            vector_perpendicular = np.zeros_like(vectors)
+            vector_perpendicular[1] = vectors[0]
+            vector_perpendicular[0] = -1*vectors[1]
+
+            try:
+                projected = np.matmul(cov, vector_perpendicular)
+            except IndexError:
+                projected = np.matmul(cov, vector_perpendicular.transpose())
+
+            eigval_transverse = np.sum(np.abs(projected))
+            return np.array([eigval_transverse, eigval_inline]) #largest, smallest
 
 def fit_unknown_GMM(index_nonzero_w_repeats,
                      n_components = 20, w = 10, reg_covar = 0):
@@ -133,17 +157,17 @@ def fit_GMM_unknown_components(n, params, sim_params, index_nonzero_w_repeats = 
         plt.xlabel("Num of Components")
         plt.ylabel("Reduced Chi Squared")
 
-    means, covs, counts= fit_GMM(n, params, 
-                                                  sim_params, index_nonzero_w_repeats=index_nonzero_w_repeats, 
-                                                  n_components=n_component, return_chi_sq=False)
+    means, covs, counts= fit_GMM(n, params, sim_params, 
+                                index_nonzero_w_repeats=index_nonzero_w_repeats, 
+                                n_components=n_component, return_chi_sq=False)
     
     if scale > 0:
         _, true_count = find_redudant(means, covs, counts, scale)
         n_component = np.count_nonzero(true_count)
 
-        means, covs, counts= fit_GMM(n, params, 
-                                                  sim_params, index_nonzero_w_repeats=index_nonzero_w_repeats, 
-                                                  n_components=n_component, return_chi_sq=False)
+        means, covs, counts= fit_GMM(n, params, sim_params, 
+                                    index_nonzero_w_repeats=index_nonzero_w_repeats, 
+                                    n_components=n_component, return_chi_sq=False)
     return means, covs, counts
 
 
@@ -174,17 +198,20 @@ def fit_GMM(n, params, sim_params, index_nonzero_w_repeats = [], cov_type = "ful
 
     nonzero_val, nonzero_ind = get_nonzero_no_repeats(n)
     indexes_cluster_assigned = gaussian_estimator.predict(nonzero_ind)
-    tt_number = np.sum(clusters)
+    tt_number = np.sum(n)
 
     chi_sq = 0
     for val, ind, index_of_cluster in zip(nonzero_val, nonzero_ind, indexes_cluster_assigned):
         mean = means[index_of_cluster]
         cov = covs[index_of_cluster]
-        count = counts[index_of_cluster]
+        try:
+            count_ratio = counts[index_of_cluster]/tt_number
+        except IndexError:
+            count_ratio = 0
 
-        if count > 0 and np.linalg.det(cov) > 0:
+        if count_ratio > 0 and np.linalg.det(cov) > 0:
             rv = multivariate_normal(mean, cov)
-            pred = count*rv.pdf(ind)/tt_number
+            pred = count_ratio*rv.pdf(ind)
             diff = np.power(val - pred, 2)/np.linalg.det(cov)
             chi_sq += np.sum(diff)
 

@@ -5,7 +5,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import json
 import os
-from trajectory import checkIfInEllipse
+from trajectory import checkIfInEllipse, get_Variances
+from supMethods import normalize_Array
 
 class TreeNode:
     def __init__(self, frame, mean, cov, count):
@@ -14,6 +15,8 @@ class TreeNode:
         self.cov = cov
         self.count = count
         self.children = []
+        self.velocity = np.array([0, 0])
+        self.vel_var = get_Variances(cov)
     
     def add_child(self, child):
         self.children.append(child)
@@ -27,7 +30,9 @@ class TreeNode:
             'mean': self.mean.tolist(),
             'cov': self.cov.tolist(),
             'count': int(self.count),
-            'children': [child.to_dict() for child in self.children]
+            'children': [child.to_dict() for child in self.children],
+            'velocity': self.velocity.tolist(),
+            'vel_var': self.vel_var.tolist(),
         }
         return node_dict
 
@@ -48,7 +53,9 @@ class TreeNode:
             frame = node_dict['frame'],
             mean = np.array(node_dict['mean']).squeeze(),
             cov = np.array(node_dict['cov']).squeeze(),
-            count = node_dict['count']
+            count = node_dict['count'],
+            velocity = np.array(node_dict['velocity']).squeeze(),
+            vel_var = np.array(node_dict['vel_var']).squeeze()
         )
         for child_dict in node_dict['children']:
             child = cls.from_dict(child_dict)
@@ -120,6 +127,12 @@ def link_Treelists(prev_list, next_list):
     for i, to_join in enumerate(link_list):
         for j in to_join:
             prev_list[i].add_child(next_list[j])
+
+            diff_vector = next_list[j].mean - prev_list[i].mean
+            next_list[j].velocity = diff_vector
+
+            variances = get_Variances(next_list[j].cov, diff_vector)
+            next_list[j].vel_var = variances
     
     return prev_list
 
