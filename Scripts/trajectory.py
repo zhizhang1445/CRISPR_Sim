@@ -46,7 +46,7 @@ def issquare(m):
         return False
 
 def get_Variances(cov, vectors = None):
-    if vectors is None or np.linalg.norm(vectors) == 0:
+    if vectors is None or np.linalg.norm(vectors) < 0.01:
         eigval, eigvec = np.linalg.eigh(cov)
         return eigval
 
@@ -63,7 +63,7 @@ def get_Variances(cov, vectors = None):
                 projected = np.matmul(cov, vectors)
             except IndexError:
                 projected = np.matmul(cov, vectors.transpose())
-            eigval_inline  = np.sum(projected)
+            eigval_inline  = np.sum(np.abs(projected))
 
             vector_perpendicular = np.zeros_like(vectors)
             vector_perpendicular[1] = vectors[0]
@@ -74,8 +74,8 @@ def get_Variances(cov, vectors = None):
             except IndexError:
                 projected = np.matmul(cov, vector_perpendicular.transpose())
 
-            eigval_transverse = np.sum(projected)
-            return np.array([eigval_inline, eigval_transverse])
+            eigval_transverse = np.sum(np.abs(projected))
+            return np.array([eigval_transverse, eigval_inline]) #largest, smallest
 
 def fit_unknown_GMM(index_nonzero_w_repeats,
                      n_components = 20, w = 10, reg_covar = 0):

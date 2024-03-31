@@ -6,12 +6,16 @@ import time
 from functools import wraps
 import matplotlib.colors as mcolors
 
-def write2json(name, params, sim_params):
+def write2json(name, params, sim_params, results = None):
     with open(name + '/params.json', 'w') as fp:
         json.dump(params, fp)
 
     with open(name + '/sim_params.json', 'w') as fp:
         json.dump(sim_params, fp)
+
+    if results is not None:
+        with open(name + '/results.json', 'w') as fp:
+            json.dump(results, fp)
 
 def read_json(foldername):
     params = {}

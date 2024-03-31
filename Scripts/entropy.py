@@ -1,13 +1,16 @@
 import numpy as np
 import numpy.ma as ma
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import scipy
-from joblib import Parallel, delayed, parallel_backend
-from supMethods import timeit
+
 from formulas import find_max_value_location
 from trajectory import fit_GMM
+from supMethods import load_outputs, read_json
+from fitness import norm_fitness, virus_growth
+from mutation import mutation
 
 def compute_entropy(array, dim = 2, k=1):
-
     if dim == 2:    
         x_ind, y_ind = np.nonzero(array)    
         
@@ -53,5 +56,51 @@ def compute_entropy_Gaussian(var, Diff_const, t, N = 1, dim =2):
 
 def compute_entropy_change(n_new, n_old, dim=2, dt=1):
     return (compute_entropy(n_new, dim) - compute_entropy(n_old, dim))*dt
+
+def plot_entropy_change(t_domain, foldername, to_plot = True, to_save_folder = None):
+    entropy_change_time = []
+    entropy_change_mutation_time = []
+    entropy_change_growth_time = []
+    entropy_change_remainder_time = []
+    t_range = []
+    n_old, nh_old, f_old = load_outputs(foldername, t_domain[0], True)
+    params, sim_params = read_json(foldername)
+
+    for t in t_domain:
+        n_new, nh_new, f_new = load_outputs(foldername, t, True)
+        f_norm = norm_fitness(f_new, n_old, params, sim_params)
+        n_intermediate = virus_growth(n_old, f_norm, params, sim_params)
+        n_mutated = mutation(n_intermediate, params, sim_params)
+
+        entropy_change_growth = compute_entropy_change(n_intermediate, n_old)
+        entropy_change_remainder = compute_entropy_change(n_new, n_intermediate)
+        entropy_change_mutation = compute_entropy_change(n_mutated, n_intermediate)
+        entropy_change = compute_entropy_change(n_new, n_old)
+
+        entropy_change_time.append(entropy_change)
+        entropy_change_mutation_time.append(entropy_change_mutation)
+        entropy_change_growth_time.append(entropy_change_growth)
+        entropy_change_remainder_time.append(entropy_change_remainder)
+        t_range.append(t)
+        n_old = n_new
+
+    if to_plot:
+        plt.figure()
+        plt.title("Entropy Production")
+        plt.plot(t_range[1:], entropy_change_time[1:], alpha = 0.2, label = "Actual Entropy")
+
+        plt.plot(t_range[1:], entropy_change_mutation_time[1:], alpha = 0.5, label = "Mutation")
+        plt.plot(t_range[1:], entropy_change_growth_time[1:], alpha = 0.5, label = "Growth")
+
+        plt.title("Entropy Production")
+        plt.ylabel("Entropy Change[1]")
+        plt.xlabel("Time")
+        plt.legend()
+
+        if to_save_folder is not None:
+            plt.savefig(to_save_folder + "/entropy.png")
+            plt.close("all")
+
+    return entropy_change_time, entropy_change_mutation_time, entropy_change_growth_time
 
 
