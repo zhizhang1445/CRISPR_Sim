@@ -12,13 +12,13 @@ from antigenicWaveSimulationMethods import make_paramslists
 if __name__ == '__main__':
 
     params = { #parameters relevant for the equations
-        "Nh":                     1E6,
+        "Nh":                     1E5,
         "N0":                     1E9, #This Will be updated by self-consitent solution
         "R0":                      20, 
         "M":                        1, #Also L, total number of spacers
-        "mu":                     0.1, #mutation rate
+        "mu":                       1, #mutation rate
         "gamma_shape":             20, 
-        "Np":                      20, #Number of Cas Protein
+        "Np":                      10, #Number of Cas Protein
         "dc":                       3, #Required number of complexes to activate defence
         "h":                        4, #coordination coeff
         "r":                     2000, #cross-reactivity kernel
@@ -32,7 +32,7 @@ if __name__ == '__main__':
         "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
         "xdomain":                   1000,
         "dx":                           1,
-        "tf":                        1000,
+        "tf":                         100,
         "dt":                           1,
         "dt_exact_fitness":             1,
         "dt_snapshot":                  1,
@@ -44,11 +44,14 @@ if __name__ == '__main__':
         "seed":                         0,
     }
 
-    list_to_sweep = [1, 5, 10, 15, 20, 25, 50, 75, 100]
+    list_to_sweep = [1, 5, 10, 15, 20, 25, 35, 50, 60, 75, 85, 100]
     params_list, sim_params_list = make_paramslists(params, sim_params, "M", list_to_sweep)
 
     try:
-        results = Parallel(n_jobs=len(params_list))(delayed(coEvoSimulation)
-            (params, sim_params) for params, sim_params in zip(params_list, sim_params_list))
+        for params, sim_params in zip(params_list, sim_params_list):
+            sim_params["num_threads"] = 32
+            results = coEvoSimulation(params, sim_params)
+        # results = Parallel(n_jobs=len(params_list))(delayed(coEvoSimulation)
+        #     (params, sim_params) for params, sim_params in zip(params_list, sim_params_list))
     except KeyboardInterrupt:
         print("Hopefully Every Closed")
