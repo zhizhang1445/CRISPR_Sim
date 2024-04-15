@@ -12,8 +12,8 @@ from antigenicWaveSimulationMethods import make_paramslists
 if __name__ == '__main__':
 
     params = { #parameters relevant for the equations
-        "Nh":                     1E5,
-        "N0":                     1E9, #This Will be updated by self-consitent solution
+        "Nh":                     1E4,
+        "N0":                     1E2, #This Will be updated by self-consitent solution
         "R0":                      20, 
         "M":                        1, #Also L, total number of spacers
         "mu":                       1, #mutation rate
@@ -29,22 +29,23 @@ if __name__ == '__main__':
         "HGT_type":                 0,
     }
     sim_params = { #parameters relevant for the simulation (including Inital Valuess)
-        "continue":                 False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
-        "xdomain":                   1000,
-        "dx":                           1,
-        "tf":                         100,
-        "dt":                           1,
-        "dt_exact_fitness":             1,
-        "dt_snapshot":                  1,
-        "initial_mean_n":           [0,0],
-        "initial_mean_nh":          [0,0],
-        "conv_size":                 4000,
-        "num_threads":                 32,
-        "foldername":   "../Data_Spacer_Size",
-        "seed":                         0,
+        "continue":                   False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
+        "xdomain":                     1000,
+        "dx":                             1,
+        "tf":                           100,
+        "dt":                             1,
+        "dt_exact_fitness":               1,
+        "dt_snapshot":                    1,
+        "initial_mean_n":             [0,0],
+        "initial_mean_nh":            [0,0],
+        "conv_size":                   4000,
+        "num_threads":                    32,
+        "foldername":  "../Data_Spacer_Size_Large",
+        "seed":                            0,
+        "hard_N0":                      True,
     }
 
-    list_to_sweep = [1, 5, 10, 15, 20, 25, 35, 50, 60, 75, 85, 100]
+    list_to_sweep = [int(i) for i in np.arange(1, 100)]
     params_list, sim_params_list = make_paramslists(params, sim_params, "M", list_to_sweep)
 
     try:

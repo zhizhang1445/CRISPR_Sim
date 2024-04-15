@@ -38,8 +38,13 @@ def init_cond(params, sim_params, out_print = False):
     Nh = params["Nh"]
     N0 = params["N0"]
     params["N"] = N0
+    i = 0
 
-    for i in range(100):
+    if sim_params["hard_N0"]:
+        params, sim_params = fill_parameters(params, sim_params)
+        i = 101
+
+    while(i < 100):
         params, sim_params = fill_parameters(params, sim_params)
         N0 = params["N"]
         uc = params["uc"]
@@ -52,6 +57,7 @@ def init_cond(params, sim_params, out_print = False):
         
         N = Nh*(params["s"]*params["v0"])
         params["N"] = N
+        i   += 1
         if np.abs(N0-N) <= 0.5:
             params["N"] = int(N)
             params, sim_params = fill_parameters(params, sim_params)

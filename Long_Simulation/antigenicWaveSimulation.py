@@ -42,6 +42,7 @@ if __name__ == '__main__':
         "num_threads":                  1,
         "foldername":   "../Data_HGT_rate_type_1",
         "seed":                         0,
+        "hard_N0":                   True,
     }
     list_to_sweep = [1/10, 1/20, 1/40, 1/80, 1/160]
 
