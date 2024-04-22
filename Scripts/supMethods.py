@@ -17,9 +17,10 @@ def write2json(name, params, sim_params, results = None):
         with open(name + '/results.json', 'w') as fp:
             json.dump(results, fp)
 
-def read_json(foldername):
+def read_json(foldername, results_flag = False):
     params = {}
     sim_params = {}
+    results = {}
     
     try:
         # Read params.json
@@ -35,6 +36,14 @@ def read_json(foldername):
     except FileNotFoundError:
         print("sim_params.json not found")
     
+    if results_flag:
+        try:
+            with open(foldername+'/results.json', 'r') as results_file:
+                    results = json.load(results_file)
+        except FileNotFoundError:
+            print("results.json not found")
+        return params, sim_params, results
+
     return params, sim_params
 
 def load_last_output(foldername):

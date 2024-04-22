@@ -57,18 +57,25 @@ def compute_entropy_Gaussian(var, Diff_const, t, N = 1, dim =2):
 def compute_entropy_change(n_new, n_old, dim=2, dt=1):
     return (compute_entropy(n_new, dim) - compute_entropy(n_old, dim))*dt
 
-def plot_entropy_change(t_domain, foldername, to_plot = True, to_save_folder = None):
+def get_entropy_change(t_domain, foldername, to_plot = True, to_save_folder = None):
     entropy_change_time = []
     entropy_change_mutation_time = []
     entropy_change_growth_time = []
     entropy_change_remainder_time = []
+    fitness_time = []
     t_range = []
+
     n_old, nh_old, f_old = load_outputs(foldername, t_domain[0], True)
     params, sim_params = read_json(foldername)
 
     for t in t_domain:
         n_new, nh_new, f_new = load_outputs(foldername, t, True)
         f_norm = norm_fitness(f_new, n_old, params, sim_params)
+
+        x_ind, y_ind = f_norm.nonzero()
+        mean_f = np.mean(f_norm[x_ind, y_ind])
+        fitness_time.append(mean_f)
+
         n_intermediate = virus_growth(n_old, f_norm, params, sim_params)
         n_mutated = mutation(n_intermediate, params, sim_params)
 
@@ -98,9 +105,13 @@ def plot_entropy_change(t_domain, foldername, to_plot = True, to_save_folder = N
         plt.legend()
 
         if to_save_folder is not None:
+            np.save(to_save_folder + "/entropy_total.npy", entropy_change_time)
+            np.save(to_save_folder + "/entropy_mutation.npy", entropy_change_mutation_time)
+            np.save(to_save_folder + "/entropy_growth.npy", entropy_change_growth_time)
+            np.save(to_save_folder + "/fitness.npy", fitness_time)
             plt.savefig(to_save_folder + "/entropy.png")
             plt.close("all")
 
-    return entropy_change_time, entropy_change_mutation_time, entropy_change_growth_time
+    return entropy_change_time, entropy_change_mutation_time, entropy_change_growth_time, fitness_time
 
 

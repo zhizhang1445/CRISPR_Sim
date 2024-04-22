@@ -11,8 +11,8 @@ from supMethods import load_last_output, read_json
 from trajsTree import make_Treelist, link_Treelists, save_Treelist
 from trajectory import fit_GMM_unknown_components, get_nonzero_w_repeats, fit_unknown_GMM, fit_GMM
 from trajectoryVisual import make_frame, make_Gif, plot_Ellipses
-from plotStuff import get_var_single, get_count_single, plot_velocity_single
-from entropy import plot_entropy_change
+from plotStuff import get_var_single, get_count_single, plot_velocity_single, from_all_root
+from entropy import get_entropy_change
 
 def get_tdomain(foldername, to_plot=True, t0 = 0, margins = (-0.4, -0.4), dt = 0):
     params, sim_params = read_json(foldername)
@@ -114,7 +114,8 @@ def create_both_Gifs(t_domain, foldername, margins, GMM_flag = 0):
         print("GMM plots made for ", foldername)
     return init_list
 
-def create_results_plots(tdomain, foldername, init_list = None):
+def create_results(tdomain, foldername, init_list = None, to_plot = False, start_index = 0):
+    results = {}
     params, sim_params = read_json(foldername)
 
     resultsfolder = foldername+"/Results"
@@ -122,11 +123,54 @@ def create_results_plots(tdomain, foldername, init_list = None):
         os.mkdir(resultsfolder)
 
     if init_list is not None:
-        get_var_single(init_list, params, sim_params, to_plot = True, to_save_folder = resultsfolder)
-        get_count_single(init_list, params, sim_params, to_plot = True, to_save_folder = resultsfolder)
-        plot_velocity_single(init_list, params, sim_params, to_plot=True, to_save_folder = resultsfolder)
+        var_T, var_P = get_var_single(init_list, params, sim_params, 
+                                      to_plot = to_plot, to_save_folder = resultsfolder)
+        
+        counts_all_root = get_count_single(init_list, params, sim_params, 
+                                           to_plot = to_plot, to_save_folder = resultsfolder)
+        
+        velocity_obs = plot_velocity_single(init_list, params, sim_params, 
+                                            to_plot = to_plot, to_save_folder = resultsfolder)
 
-    plot_entropy_change(tdomain, foldername, to_plot=True, to_save_folder = resultsfolder)
+    ent, ent_m, ent_f, f= get_entropy_change(tdomain, foldername, to_plot=True, to_save_folder = resultsfolder)
+
+    try:
+        mean, error = from_all_root(var_T[start_index:])
+        results["var_T_mean"] = mean
+        results["var_T_err"] = error
+
+        mean, error = from_all_root(var_P[start_index:])
+        results["var_P_mean"] = mean
+        results["var_P_err"] = error
+        
+        mean, error = from_all_root(counts_all_root[start_index:])
+        results["count_mean"] = mean
+        results["count_err"] = error
+
+        mean, error = from_all_root(velocity_obs[start_index:])
+        results["vel_mean"] = mean
+        results["vel_err"] = error
+
+        mean, error = from_all_root(ent[start_index:])
+        results["Entropy_mean"] = mean
+        results["Entropy_err"] = error
+
+        mean, error = from_all_root(ent_m[start_index:])
+        results["Entropy_m_mean"] = mean
+        results["Entropy_m_err"] = error
+
+        mean, error = from_all_root(ent_f[start_index:])
+        results["Entropy_f_mean"] = mean
+        results["Entropy_f_err"] = error
+
+        mean, error = from_all_root(f[start_index:])
+        results["fitness_mean"] = mean
+        results["fitness_err"] = error
+
+        with open(foldername + '/results.json', 'w') as fp:
+            json.dump(results, fp)
+    except IndexError:
+        return 0
     return 1
 
 def main(foldername, dt = 0, plot_flag = True, margin = -0.4, GMM_flag = 0):
@@ -142,9 +186,9 @@ def main(foldername, dt = 0, plot_flag = True, margin = -0.4, GMM_flag = 0):
         root_list = create_Tree(t_domain, foldername, GMM_flag)
     
     try:
-        create_results_plots(t_domain, foldername, root_list)
+        create_results(t_domain, foldername, root_list)
     except FileNotFoundError:
-        print("No Entropy made at ", foldername)
+        print("No Analysis Made at ", foldername)
     return 1
 
 if __name__ == "__main__":

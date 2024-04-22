@@ -10,7 +10,12 @@ from trajsTree import TreeNode
 from supMethods import extract_xy, average_of_pairs
 from formulas import calculate_FisherVelocity, calculate_velocity, calculate_var
 
-def get_count_single(init_list, params, sim_params, start_index = 0, to_plot = False, to_save_folder = None):
+def from_all_root(data_all_root: np.ndarray):
+    mean = np.mean(data_all_root)
+    error = np.sqrt(np.var(data_all_root)/np.size(data_all_root))
+    return mean, error
+
+def get_count_single(init_list, params, sim_params, to_plot = False, to_save_folder = None):
     count_all_root = []
     if to_plot:
         plt.figure()
@@ -31,10 +36,12 @@ def get_count_single(init_list, params, sim_params, start_index = 0, to_plot = F
         plt.ylabel("Phage Count [1]")
 
     if to_save_folder is not None:
-       plt.savefig(to_save_folder + "/counts.png")
-       plt.close("all")
+        if to_plot:
+            plt.savefig(to_save_folder + "/counts.png")
+            plt.close("all")
+        np.save(to_save_folder + "/counts.npy", np.array(counts).squeeze())
 
-    return  np.mean(count_all_root[start_index:]), np.var(count_all_root[start_index:])
+    return  np.mean(count_all_root).squeeze(), np.var(count_all_root).squeeze()
 
 def get_var_single(init_list, params, sim_params, to_plot = False, to_save_folder = None):
     var_T_all_root = []
@@ -63,13 +70,14 @@ def get_var_single(init_list, params, sim_params, to_plot = False, to_save_folde
         ax[1].set_title("Transverse Variance")
 
     if to_save_folder is not None:
-       fig.savefig(to_save_folder + "/variances.png")
-       plt.close("all")
+        if to_plot:
+            fig.savefig(to_save_folder + "/variances.png")
+            plt.close("all")
+        
+        np.save(to_save_folder + "/variances_T.npy", np.array(var_T_all_root).squeeze())
+        np.save(to_save_folder + "/variances_P.npy", np.array(var_P_all_root).squeeze())
     
-    means = [np.mean(var_T_all_root), np.mean(var_P_all_root)]
-    variances = [np.var(var_T_all_root), np.var(var_P_all_root)]
-
-    return  means, variances
+    return np.array(var_T_all_root).squeeze(), np.array(var_P_all_root).squeeze()
 
 def calc_var_single(init_list, params, sim_params):
     var_calc_all_root = []
@@ -113,9 +121,13 @@ def plot_velocity_single(init_list, params, sim_params, to_plot = False, to_save
         plt.title("Observed Velocity")
 
     if to_save_folder is not None:
-       plt.savefig(to_save_folder + "/velocities.png")
-       plt.close("all")
-    return velocity_obs
+        if to_plot:
+            plt.savefig(to_save_folder + "/velocities.png")
+            plt.close("all")
+        
+        np.save(to_save_folder + "/velocities.npy", velocity_obs)
+    return np.array(velocity_obs).squeeze()
+
 
 def calc_velocity_single(init_list, params, sim_params):
     velocity_calc = np.array([])
