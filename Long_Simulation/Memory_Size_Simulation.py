@@ -12,7 +12,7 @@ from antigenicWaveSimulationMethods import make_paramslists
 if __name__ == '__main__':
 
     params = { #parameters relevant for the equations
-        "Nh":                     1E2,
+        "Nh":                     1E4,
         "N0":                     1E2, #This Will be updated by self-consitent solution
         "R0":                      20, 
         "M":                      500, #Also L, total number of spacers
@@ -32,7 +32,7 @@ if __name__ == '__main__':
         "continue":                   False, #DO NOT CREATE ARBITRARY FOLDERS ONLY FOR TESTS
         "xdomain":                     5000,
         "dx":                             1,
-        "tf":                          1000,
+        "tf":                           100,
         "dt":                             1,
         "dt_exact_fitness":               1,
         "dt_snapshot":                    1,
@@ -52,10 +52,9 @@ if __name__ == '__main__':
 
     for item in list_to_sweep2:
         params["Np"] = 100
-        params_list2, sim_params_list2 = make_paramslists(params, sim_params, "M", list_to_sweep)
+        params_list2, sim_params_list2 = make_paramslists(params, sim_params, "M", list_to_sweep, n_seeds=100)
         params_list.extend(params_list2)
         sim_params_list.extend(sim_params_list2)
-
 
     try:
         results = Parallel(n_jobs=len(params_list))(delayed(coEvoSimulation)
