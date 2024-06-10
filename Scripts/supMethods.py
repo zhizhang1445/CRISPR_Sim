@@ -22,26 +22,20 @@ def read_json(foldername, results_flag = False):
     sim_params = {}
     results = {}
     
-    try:
         # Read params.json
-        with open(foldername+'/params.json', 'r') as params_file:
-            params = json.load(params_file)
-    except FileNotFoundError:
-        print("params.json not found")
+    with open(foldername+'/params.json', 'r') as params_file:
+        params = json.load(params_file)
     
-    try:
         # Read sim_params.json
-        with open(foldername+'/sim_params.json', 'r') as sim_params_file:
-            sim_params = json.load(sim_params_file)
-    except FileNotFoundError:
-        print("sim_params.json not found")
+    with open(foldername+'/sim_params.json', 'r') as sim_params_file:
+        sim_params = json.load(sim_params_file)
     
     if results_flag:
         try:
             with open(foldername+'/results.json', 'r') as results_file:
                     results = json.load(results_file)
         except FileNotFoundError:
-            print("results.json not found")
+            raise FileNotFoundError("results.json not found")
         return params, sim_params, results
 
     return params, sim_params

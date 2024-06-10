@@ -1,3 +1,4 @@
+from json import JSONDecodeError
 import numpy as np
 import multiprocessing
 from scipy import sparse
@@ -76,7 +77,7 @@ def make_paramslists(params, sim_params, sweep_params: str, list_to_sweep: list)
             sim_params_list.append(deepcopy(sim_params))
     return params_list, sim_params_list
 
-def main(params, sim_params) -> int :
+def main(params, sim_params, normalize_f = True) -> int :
     np.random.seed(sim_params['seed'])
     foldername = sim_params["foldername"]
     shift_vector = [0,0] #This is unused if dt_exact_fitness is zero
@@ -97,7 +98,7 @@ def main(params, sim_params) -> int :
             with open(foldername+'/runtime_stats.txt','a') as file:
                 file.write(f't: {t}| Restarted  | Phage Population: {n_total:.4f}| Spacer Population: {nh_total:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}| M: {M0:.4f} \n')
 
-        except KeyError or (nh is None): #the folders were empty so better restart everything
+        except FileNotFoundError or (nh is None): #the folders were empty so better restart everything
             sim_params["continue"] = False
 
 
@@ -138,11 +139,13 @@ def main(params, sim_params) -> int :
             st2 = time.time()
             f = fitness_spacers(n, nh, p, params, sim_params)
             sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
-            f = norm_fitness(f, n, params, sim_params) #renormalize f
+
+            if normalize_f:
+                f = norm_fitness(f, n, params, sim_params) #renormalize f
 
             n = virus_growth(n, f, params, sim_params) #update
             
-            if (np.sum(n) <= 0) or (np.sum(n) >= (1/2)*np.sum(nh)):
+            if (np.sum(n) <= 0) or (np.sum(n) >= (2)*np.sum(nh)):
                 with open(foldername+'/runtime_stats.txt','a') as file:
                     outstring = f"DEAD at: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
                     file.write(outstring)
