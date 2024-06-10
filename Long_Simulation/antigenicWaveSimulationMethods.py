@@ -19,9 +19,8 @@ from formulas import compute_shift
 from supMethods import read_json, load_last_output, write2json, time_conv
 from randomHGT import get_time_next_HGT, HGT_logistic_event
 
-def make_paramslists(params, sim_params, sweep_params: str, list_to_sweep: list):
+def make_paramslists(params, sim_params, sweep_params: str, list_to_sweep: list, n_seeds = 1):
     num_threads_set = False
-    n_seeds = 1
     foldername = sim_params["foldername"]
     #the call is python3 antigenicWaveSimulation.py <num_cores> <num_seeds> <0 for restart or 1 for continue>
 
