@@ -36,7 +36,7 @@ def p_single_spacer(p_dense, params, sim_params): #TODO Sparsed in Theory
 
     p_1_spacer = binomial_pdf(M, 1, p_dense)
     p_shared = 0
-    for d in range(1, Np):
+    for d in range(0, Np+1):
         p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-alpha(d, params))
     return p_shared
 
@@ -84,7 +84,7 @@ def norm_fitness(f_sparse, n, params, sim_params):
     new_f[x_ind, y_ind] = f_sparse[x_ind, y_ind].toarray() - f_avg
     return new_f
 
-def virus_growth(n, f_sparse, params, sim_params): #TODO PARALLELIZE THIS
+def virus_growth(n, f_sparse, params, sim_params, deterministric_growth = False): #TODO PARALLELIZE THIS
     dt = sim_params["dt"]
     x_ind, y_ind = n.nonzero()
     if scipy.sparse.issparse(f_sparse):
@@ -97,10 +97,14 @@ def virus_growth(n, f_sparse, params, sim_params): #TODO PARALLELIZE THIS
     else:
         n_dense = n[x_ind, y_ind]
 
-    mean = np.clip((1+f_dense*dt), a_min = 0, a_max=None)*n_dense
 
     n_new = scipy.sparse.dok_matrix(n.shape, dtype = int)
-    n_new[x_ind, y_ind] = np.random.poisson(mean)
+
+    if not deterministric_growth:
+        mean = np.clip((1+f_dense*dt), a_min = 0, a_max=None)*n_dense
+        n_new[x_ind, y_ind] = np.random.poisson(mean)
+    else:
+        n_new[x_ind, y_ind] = np.clip(n_dense + f_dense*n_dense, a_min=0, a_max=None)
     return  n_new
 
 def pred_value(params, sim_params):
