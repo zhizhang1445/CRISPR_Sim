@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
+from fitness import binomial_pdf
 
 def find_max_value_location(matrix):
     max_value = float('-inf')
@@ -102,6 +103,22 @@ def running_median_filter(signal, window_size, padding = 'symmetric'):
     trimmed_signal = filtered_signal[pad_width:-pad_width]
     return trimmed_signal
 
+def p_infection(p_coverage, M, Np, dc):
+    p_infection = (1-p_coverage)**M
+
+    for n in range(1, M+1):
+        p_n_spacer = binomial_pdf(M, n, p_coverage)
+        for d in range(0, dc+1):
+            p_infection += binomial_pdf(Np, d, n/M)*p_n_spacer
+    return p_infection
+
+def p_1_infection(p_coverage, M, Np, dc):
+    p_infection = (1-p_coverage)**M
+
+    p_1_spacer = binomial_pdf(M, 1, p_coverage)
+    for d in range(0, dc+1):
+        p_infection += binomial_pdf(Np, d, 1/M)*p_1_spacer
+    return p_infection
 
 
 def calc_diff_const(params, sim_params):
