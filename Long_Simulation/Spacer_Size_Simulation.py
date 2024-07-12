@@ -51,7 +51,7 @@ if __name__ == '__main__':
     try:
         for params, sim_params in zip(params_list, sim_params_list):
             sim_params["num_threads"] = 32
-            results = coEvoSimulation(params, sim_params, normalize_f =False)
+            results = coEvoSimulation(params, sim_params, normalize_f=True)
         # results = Parallel(n_jobs=len(params_list))(delayed(coEvoSimulation)
         #     (params, sim_params) for params, sim_params in zip(params_list, sim_params_list))
     except KeyboardInterrupt:
