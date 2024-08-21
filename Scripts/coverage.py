@@ -7,6 +7,7 @@ from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
 from concurrent.futures import as_completed
 from supMethods import timeit
+from scipy.spatial.distance import cdist
 
 def square_split(array, split_size): #Find smallest matrix possible and make it I'm thinking 100x100
     if np.ndim(array) == 1:
@@ -132,3 +133,98 @@ def elementwise_coverage(nh, n, kernel_quarter, params, sim_params, print_progre
     
     out = np.sum(results, axis=0)
     return out/M
+
+def elementwise_coverage_vectorized(nh, n, kernel_dict:dict, params, sim_params, print_progress = False):
+    def lookup_value(val):
+        val = float(val)
+        return kernel_dict.get(val, 0.)
+    
+    def convolve_part(range_array):
+        res = np.zeros(len(range_array))
+        for i, ind in enumerate(range_array): #go through indexes of n
+            res[i] = np.sum(np.vectorize(lookup_value)(dist[:,int(ind)])*nonzero_values)
+        return res
+    
+    Nh = params["Nh"]
+    M = params["M"]
+    num_threads = sim_params["num_threads"]
+
+    x_ind_nh, y_ind_nh = nh.nonzero()
+    x_ind_n, y_ind_n = n.nonzero()
+
+    input_h = np.divide(nh, Nh*M)
+    nonzero_values = input_h[x_ind_nh, y_ind_nh]
+
+    len_ind_n = len(x_ind_n)
+    range_arrays = np.array_split(np.arange(len_ind_n).astype(int), num_threads)
+
+    A = np.array([x_ind_nh, y_ind_nh]).transpose()
+    B = np.array([x_ind_n, y_ind_n]).transpose()
+    dist = cdist(A, B)
+
+    results = Parallel(n_jobs=num_threads)(delayed(convolve_part)
+        (range_array)
+            for range_array
+                in range_arrays)
+    
+    result_values = np.concatenate(results)
+    res = scipy.sparse.dok_matrix(n.shape, dtype=float)
+    res[x_ind_n, y_ind_n] = result_values
+    return res
+
+def double_elementwise_coverage(nh, n, coverage_kernel, acquisition_kernel, params, sim_params, print_progress = False):
+    conv_size = sim_params["conv_size"]
+    Nh = params["Nh"]
+    M = params["M"]
+    num_threads = sim_params["num_threads"]
+
+    x_ind_nh, y_ind_nh = nh.nonzero()
+    x_ind_n, y_ind_n = n.nonzero()
+
+    x_nh_sets = np.array_split(x_ind_nh, num_threads)
+    y_nh_sets = np.array_split(y_ind_nh, num_threads)
+
+    input_h = np.divide(nh, Nh)
+    tt_num_of_ind = len(x_ind_nh)
+
+    def convolve_subset(x_ind_nh, y_ind_nh):
+        res_coverage = scipy.sparse.dok_matrix(nh.shape, dtype=float)
+        res_acquisition = scipy.sparse.dok_matrix(nh.shape, dtype=float)
+
+        if print_progress:
+            ind_nh_left = tt_num_of_ind
+
+        for x_nh, y_nh in zip(x_ind_nh, y_ind_nh):
+            value = input_h[x_nh, y_nh]
+
+            for x_n, y_n in zip(x_ind_n, y_ind_n):
+
+                x_kernel = np.abs(x_nh-x_n)
+                y_kernel = np.abs(y_nh-y_n)
+
+                if np.any((x_kernel >= conv_size, y_kernel >= conv_size)):
+                    continue
+                
+                try:
+                    interaction_coverage = coverage_kernel[x_kernel, y_kernel]
+                    interaction_acquisition = acquisition_kernel[x_kernel, y_kernel]
+                except(IndexError):
+                    print("wtf? Convolution out of Bounds??", x_kernel, y_kernel)
+                    break
+
+                res_coverage[x_n, y_n] += value*interaction_coverage
+                res_acquisition[x_n, y_n] += value*interaction_acquisition
+
+            if print_progress:
+                print(f"Number of nh index left: {ind_nh_left}")
+                ind_nh_left -= 1
+        return res_coverage, res_acquisition
+
+    results_cov, results_acq = Parallel(n_jobs=num_threads)(delayed(convolve_subset)
+        (x_ind_nh, y_ind_nh) 
+            for x_ind_nh, y_ind_nh
+                in zip(x_nh_sets, y_nh_sets))
+    
+    out_coverage = np.sum(results_cov, axis=0)/M
+    out_acquisition = np.sum(results_acq, axis=0)/np.sum(results_acq)
+    return out_coverage, out_acquisition

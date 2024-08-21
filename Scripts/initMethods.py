@@ -2,6 +2,7 @@ import numpy as np
 import copy
 import matplotlib.pyplot as plt
 import scipy
+from scipy.linalg import norm
 from joblib import Parallel, delayed
 from formulas import calc_diff_const
 from randomHGT import get_time_next_HGT
@@ -232,3 +233,28 @@ def init_full_kernel(params, sim_params, type = "coverage", exponent = 1): #Kern
     exp_radius = np.power(radius, exponent)
     matrix_ker = np.exp(-exp_radius*kernel)
     return matrix_ker
+
+def init_dict_kernel(params, sim_params, type = "coverage", exponent = 1):
+    if type == "coverage":
+        kernel = 1./params["r"]
+    elif type == "Boltzmann":
+        kernel = params["beta"]
+    else:
+        raise NotImplementedError
+
+    kernel = 1/params["r"]
+
+    conv_ker_size = sim_params["conv_size"]
+
+    A = np.arange(0, conv_ker_size, 1)
+    A_mesh, B_mesh = np.meshgrid(A, A)
+
+    # Flatten the meshgrid arrays
+    A_flat = A_mesh.ravel()
+    B_flat = B_mesh.ravel()
+
+    mask = A_flat <= B_flat
+    unique_pairs = np.column_stack([A_flat[mask], B_flat[mask]])
+
+    kernel_dict = {norm(key): np.exp(-norm(key)*kernel) for key in unique_pairs}
+    return kernel_dict

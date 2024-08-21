@@ -133,3 +133,32 @@ def immunity_loss_uniform(nh, n, params, sim_params, num_to_remove = None):
         raise ValueError("bacteria population is negative")
 
     return nh
+
+def immunity_gain_from_probability(nh, n, current_prob, params, sim_params, num_to_add = None):
+    Nh = params["Nh"]
+    M = params["M"]
+    num_threads = sim_params["num_threads"]
+
+    if num_to_add is None:
+        num_to_add = np.sum(n)
+
+    x_ind, y_ind = n.nonzero()
+    support_size = len(x_ind)
+
+    def add_points(itr_list):
+        array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
+        sample_ind = np.random.choice(support_size, len(itr_list), p = current_prob)
+        for i in sample_ind:
+            x = x_ind[i]
+            y = y_ind[i]
+            array[x, y] += 1
+        return array
+    
+    main_itr = np.arange(num_to_add)
+    sub_itr_sets = np.array_split(main_itr, num_threads)
+    
+    results = Parallel(n_jobs=num_threads)(delayed(add_points)
+        (itr) for itr in sub_itr_sets)
+    
+    nh_integrated = nh+np.sum(results, axis = 0)
+    return nh_integrated

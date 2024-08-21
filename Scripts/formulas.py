@@ -1,7 +1,17 @@
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
-from fitness import binomial_pdf
+
+def binomial_pdf(n, x, p_dense): #TODO Not Tested but sparsed in Theory
+    if scipy.sparse.issparse(n):
+        x_ind, y_ind = np.nonzero(n)
+        multiplicity = scipy.sparse.dok_matrix(n.shape)
+        multiplicity[x_ind, y_ind] = scipy.special.binom(n[x_ind, y_ind].todense(), x)
+    else:
+        multiplicity = scipy.special.binom(n, x)
+
+    bernouilli = np.power(p_dense, x)*np.power((1-p_dense), (n-x))
+    return multiplicity*bernouilli
 
 def find_max_value_location(matrix):
     max_value = float('-inf')
