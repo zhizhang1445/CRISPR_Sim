@@ -72,7 +72,7 @@ def immunity_update(nh, n, params, sim_params):
 
     return nh
 
-@timeit
+# @timeit
 def immunity_mean_field(nh, n, params, sim_params):
     Nh = params["Nh"]
     M = params["M"]
@@ -103,7 +103,7 @@ def immunity_mean_field(nh, n, params, sim_params):
 
     return nh
 
-@timeit
+# @timeit
 def immunity_update_SerialChoice(nh, n, params, sim_params):
     Nh = params["Nh"]
     M = params["M"]

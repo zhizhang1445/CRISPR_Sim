@@ -5,6 +5,56 @@ import os
 import time
 from functools import wraps
 import matplotlib.colors as mcolors
+from joblib import Parallel, delayed
+
+def sum_parallel(results_list, num_threads):
+    def sum_pair(array1, array2):
+        return array1 + array2
+
+    if len(results_list) < num_threads:
+        num_threads = 0
+
+    if num_threads >= 32:
+        #First set with 32 elements
+        partial_sums = results_list[:32]
+
+        # Second Set with all elements more than 32
+        remainder_to_sum = results_list[32:]
+
+        # Sum the first level with 16 threads
+        partial_sums = Parallel(n_jobs=16)(
+            delayed(sum_pair)(partial_sums[i], partial_sums[i + 1]) for i in range(0, 32, 2)
+        )
+
+        partial_sums.extend(remainder_to_sum)
+        results_list = partial_sums
+
+    if num_threads >= 16:
+        partial_sums = results_list[:16]
+        remainder_to_sum = results_list[16:]
+
+        # Sum the second level with 8 threads
+        partial_sums = Parallel(n_jobs=8)(
+            delayed(sum_pair)(partial_sums[i], partial_sums[i + 1]) for i in range(0, 16, 2)
+        )
+
+        partial_sums.extend(remainder_to_sum)   
+        results_list = partial_sums
+    
+    # if num_threads >= 8:
+    #     partial_sums = results_list[:8]
+    #     remainder_to_sum = results_list[8:]
+
+    #     # Sum the second level with 8 threads
+    #     partial_sums = Parallel(n_jobs=4)(
+    #         delayed(sum_pair)(partial_sums[i], partial_sums[i + 1]) for i in range(0, 8, 2)
+    #     )
+
+    #     partial_sums.extend(remainder_to_sum)   
+    #     results_list = partial_sums
+
+    final_sum = np.sum(results_list, axis=0)
+    return final_sum
 
 def write2json(name, params, sim_params, results = None):
     with open(name + '/params.json', 'w') as fp:

@@ -138,36 +138,38 @@ def elementwise_coverage_vectorized(nh, n, kernel_dict:dict, params, sim_params,
     def lookup_value(val):
         val = float(val)
         return kernel_dict.get(val, 0.)
-    
-    def convolve_part(range_array):
-        res = np.zeros(len(range_array))
-        for i, ind in enumerate(range_array): #go through indexes of n
-            res[i] = np.sum(np.vectorize(lookup_value)(dist[:,int(ind)])*nonzero_values)
+
+    def convolve_subset(A, nonzero_values):
+        res = np.zeros(len_ind_n)
+
+        # dist = cdist(A, B)
+        for i in range(len_ind_n): #go through indexes of n
+            dist = cdist(A, B[i, :].reshape(1,2))
+            res[i] = np.dot(np.vectorize(lookup_value)(dist).squeeze(), nonzero_values)
+            # res[i] = np.dot(np.vectorize(lookup_value)(dist[:, 0]).squeeze(), nonzero_values)
+            # res[i] = np.dot(dist[:, 0], nonzero_values)
+            # dist = dist[:, 1:]
         return res
-    
+
     Nh = params["Nh"]
     M = params["M"]
-    num_threads = sim_params["num_threads"]
 
     x_ind_nh, y_ind_nh = nh.nonzero()
     x_ind_n, y_ind_n = n.nonzero()
 
-    input_h = np.divide(nh, Nh*M)
-    nonzero_values = input_h[x_ind_nh, y_ind_nh]
-
-    len_ind_n = len(x_ind_n)
-    range_arrays = np.array_split(np.arange(len_ind_n).astype(int), num_threads)
-
     A = np.array([x_ind_nh, y_ind_nh]).transpose()
     B = np.array([x_ind_n, y_ind_n]).transpose()
-    dist = cdist(A, B)
+    len_ind_n = len(x_ind_n)
 
-    results = Parallel(n_jobs=num_threads)(delayed(convolve_part)
-        (range_array)
-            for range_array
-                in range_arrays)
-    
-    result_values = np.concatenate(results)
+    input_h = np.divide(nh, Nh*M)
+    if scipy.sparse.issparse(input_h):
+        input_h = input_h[x_ind_nh, y_ind_nh].toarray()
+        nonzero_values = np.array(input_h).squeeze()
+    else:
+        input_h = input_h[x_ind_nh, y_ind_nh]
+        nonzero_values = np.array(input_h).squeeze()
+
+    result_values = convolve_subset(A, nonzero_values)
     res = scipy.sparse.dok_matrix(n.shape, dtype=float)
     res[x_ind_n, y_ind_n] = result_values
     return res

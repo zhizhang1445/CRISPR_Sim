@@ -6,6 +6,7 @@ from scipy.linalg import norm
 from joblib import Parallel, delayed
 from formulas import calc_diff_const
 from randomHGT import get_time_next_HGT
+from supMethods import sum_parallel
 
 def fill_parameters(params, sim_params):
     R0 = params["R0"]
@@ -109,8 +110,8 @@ def init_guassian(init_num, sim_params, type = "n"):
     # out = add_Gaussian_noise(np.arange(0, N0))
     results = Parallel(n_jobs=num_threads)(delayed(add_Gaussian_noise)
             (subset) for subset in iter_per_thread)
-    out = np.sum(results, axis=0)
-
+    
+    out = sum_parallel(results, num_threads)
     return out
 
 def init_uniform(init_num, sim_params):
@@ -137,8 +138,7 @@ def init_uniform(init_num, sim_params):
 
     results = Parallel(n_jobs=num_threads)(delayed(add_Uniform_noise)
             (subset) for subset in iter_per_thread)
-    out = np.sum(results, axis=0)
-
+    out = sum_parallel(results, num_threads)
     return out
 
 def init_exptail(init_num, params, sim_params, type = "nh"):
@@ -193,8 +193,7 @@ def init_exptail(init_num, params, sim_params, type = "nh"):
     results = Parallel(n_jobs=num_threads)(delayed(add_GaussianExptail_noise)
             (subset) for subset in iter_per_thread)
     # results = add_GaussianExptail_noise(np.arrange(0, N0))
-    out = np.sum(results, axis=0)
-
+    out = sum_parallel(results, num_threads)
     return out
 
 def init_quarter_kernel(params, sim_params, type = "Radius", exponent = 1): #Kernel is not parrallel
