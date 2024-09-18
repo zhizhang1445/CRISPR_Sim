@@ -6,7 +6,6 @@ import time
 from functools import wraps
 import matplotlib.colors as mcolors
 from joblib import Parallel, delayed
-from formulas import calc_diff_const
 
 def sum_parallel(results_list, num_threads):
     def sum_pair(array1, array2):
@@ -211,6 +210,20 @@ def find_mean_location(matrix):
     mean_col = mean_col/tt_value
 
     return mean_row, mean_col
+
+def calc_diff_const(params, sim_params):
+    dx = sim_params["dx"]
+    shape = params["gamma_shape"]
+    mu = params["mu"]
+
+    mean = 2*dx
+    scale = mean/shape
+    gamma_var = shape*(scale**2)
+    cos_uni_var = 1/2
+    prod_var = (mean**2 + gamma_var)*(cos_uni_var)
+
+    diff_const = mu*prod_var/2
+    return diff_const
 
 def compute_shift(nh, nh_prev, type = "max"):
 

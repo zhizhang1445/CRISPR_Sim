@@ -1,11 +1,95 @@
 import numpy as np
 import numpy.ma as ma
 import scipy
+from scipy.signal import convolve
+from scipy.sparse import issparse
 from joblib import Parallel, delayed, parallel_backend
-from supMethods import timeit
-from formulas import find_max_value_location
+from supMethods import timeit, find_max_value_location
 
 def immunity_gain_from_kernel(nh, n, kernel, params, sim_params, num_to_add = None):
+    ndim = sim_params["ndim"]
+    if ndim == 1 and isinstance(n, np.ndarray):
+        return immunity_gain_from_kernel_1D(nh, n, kernel, params, sim_params, num_to_add)
+    elif ndim == 2 and issparse(n):
+        return immunity_gain_from_kernel_2D(nh, n, kernel, params, sim_params, num_to_add)
+    else:
+        raise TypeError(f"Something went wrong with Immunity Gain | n_dim: {ndim} but type is {type(nh)}")
+
+def immunity_gain_from_kernel_1D(nh, n, kernel, params, sim_params, num_to_add = None):
+    Nh = params["Nh"]
+    M = params["M"]
+    x_ind = np.nonzero(n)[0]
+    n_nonzero = n[x_ind]
+
+    if num_to_add is None:
+        num_to_add = np.sum(n)
+
+
+    def generate_prob(nh, kernel):
+        input_h = nh/(Nh*M)
+        probability = convolve(input_h, kernel, mode = "same")
+        return probability
+
+    if kernel is None:
+        beta = params["beta"]
+        if beta == 0:
+            prob_acquisition = n_nonzero/np.sum(n)
+        else:
+            print("problem with beta type, missing Kernel")
+            raise ValueError
+    else:
+        current_prob = generate_prob(nh, kernel)
+        prob_acquisition = current_prob[x_ind]*n_nonzero
+        Z_partition = np.sum(prob_acquisition)
+        prob_acquisition = prob_acquisition/Z_partition
+    
+    to_add = np.zeros_like(n, dtype = int)
+
+    for _ in range(num_to_add):
+        sample_ind = np.random.choice(x_ind, p = prob_acquisition)
+        to_add[sample_ind] += 1
+        
+    nh_integrated = nh+to_add
+    return nh_integrated    
+
+def immunity_loss_uniform_1D(nh, n, params, sim_params, num_to_remove = None):
+    Nh = params["Nh"]
+    M = params["M"]
+
+    def get_nonzero_w_repeats_1D(n_i):
+        x_ind = np.nonzero(n_i)[0]
+        nonzero_values = [n_i[index] for index in x_ind]
+        index_nonzero_w_repeats = []
+        for value, index in zip(nonzero_values, x_ind):
+            for i in range(int(value)):
+                index_nonzero_w_repeats.append(index)
+        return index_nonzero_w_repeats
+
+    total_number = np.sum(nh)
+    x_ind_w_repeats = get_nonzero_w_repeats_1D(nh)
+
+    if num_to_remove is None:
+        num_to_remove = int(total_number - Nh*M)
+
+    to_remove = np.zeros_like(nh, dtype = int)
+
+    for _ in range(num_to_remove):
+        sample_ind = np.random.choice(x_ind_w_repeats, replace=False)
+        to_remove[sample_ind] -= 1
+        
+    nh_integrated = nh+to_remove
+    return nh_integrated
+
+def immunity_loss_uniform(nh, n, params, sim_params, num_to_remove = None):
+    ndim = sim_params["ndim"]
+    if ndim == 1 and isinstance(n, np.ndarray):
+        return immunity_loss_uniform_1D(nh, n, params, sim_params, num_to_remove)
+    elif ndim == 2 and issparse(n):
+        return immunity_loss_uniform_2D(nh, n, params, sim_params, num_to_remove)
+    else:
+        raise TypeError(f"Something went wrong with Immunity Loss | n_dim: {ndim} but type is {type(n)}")
+
+def immunity_gain_from_kernel_2D(nh, n, kernel, params, sim_params, num_to_add = None):
     Nh = params["Nh"]
     M = params["M"]
     num_threads = sim_params["num_threads"]
@@ -40,17 +124,24 @@ def immunity_gain_from_kernel(nh, n, kernel, params, sim_params, num_to_add = No
                 break
         return probability
 
-    results = Parallel(n_jobs=num_threads)(delayed(generate_prob)
-        (x_ind, y_ind) for x_ind, y_ind in zip(x_nh_sets, y_nh_sets))
-    
-    current_prob = np.concatenate(results, axis=0)
-    Z_partition = np.sum(current_prob)
-    
-    if Z_partition == 0:
-        print("No Acquisition")
-        return nh
+    if kernel is None:
+        beta = params["beta"]
+        if beta == 0:
+            prob_acquisition = n[x_ind, y_ind]/np.sum(n)
+        else:
+            print("problem with beta type, missing Kernel")
+            raise ValueError
     else:
-        current_prob = current_prob/Z_partition
+        results = Parallel(n_jobs=num_threads)(delayed(generate_prob)
+            (x_ind, y_ind) for x_ind, y_ind in zip(x_nh_sets, y_nh_sets))
+        current_prob = np.concatenate(results, axis=0)
+        Z_partition = np.sum(current_prob)
+        
+        if Z_partition == 0:
+            print("No Acquisition")
+            return nh
+        else:
+            current_prob = current_prob/Z_partition
 
     def add_points(itr_list):
         array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
@@ -70,10 +161,9 @@ def immunity_gain_from_kernel(nh, n, kernel, params, sim_params, num_to_add = No
     nh_integrated = nh+np.sum(results, axis = 0)
     return nh_integrated
 
-def immunity_loss_uniform(nh, n, params, sim_params, num_to_remove = None):
+def immunity_loss_uniform_2D(nh, n, params, sim_params, num_to_remove = None):
     Nh = params["Nh"]
     M = params["M"]
-    std_remove_num = np.sum(n)
     num_threads = sim_params["num_threads"]
 
     total_number = np.sum(nh)
@@ -134,7 +224,7 @@ def immunity_loss_uniform(nh, n, params, sim_params, num_to_remove = None):
 
     return nh
 
-def immunity_gain_from_probability(nh, n, current_prob, params, sim_params, num_to_add = None):
+def immunity_gain_from_probability_2D(nh, n, current_prob, params, sim_params, num_to_add = None):
     Nh = params["Nh"]
     M = params["M"]
     num_threads = sim_params["num_threads"]

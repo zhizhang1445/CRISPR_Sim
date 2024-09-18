@@ -2,7 +2,7 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 from copy import deepcopy
-from supMethods import minmax_norm
+from supMethods import minmax_norm, calc_diff_const
 
 def alpha(d, params): #This doesn't need to be sparsed
     dc = params["dc"]
@@ -29,20 +29,6 @@ def p_infection(p_coverage, M, Np, dc):
         for d in range(0, dc+1):
             p_infection += binomial_pdf(Np, d, n/M)*p_n_spacer
     return p_infection
-
-def calc_diff_const(params, sim_params):
-    dx = sim_params["dx"]
-    shape = params["gamma_shape"]
-    mu = params["mu"]
-
-    mean = 2*dx
-    scale = mean/shape
-    gamma_var = shape*(scale**2)
-    cos_uni_var = 1/2
-    prod_var = (mean**2 + gamma_var)*(cos_uni_var)
-
-    diff_const = mu*prod_var/2
-    return diff_const
 
 def guassian_diffusion(xspace, yspace, t, params, sim_params, print_flag = False):
     n_var = sim_params["initial_var_n"]
@@ -99,13 +85,15 @@ def trail_exp(x, t, params, sim_params, prob = False):
     tau = params["tau"]
     N = params["N"]
     v = params["v0"]
+    Nh = params["Nh"]
+    M = params["M"]
     B = (v*t - x)/(v*tau)
 
     exp1 = np.exp(-1*B)
     heaviside = np.heaviside(v*t - x, 1)
     res = A*exp1*heaviside*(N/v)
     if prob:
-        return res/np.sum(res)
+        return res/(np.sum(res))
     else:
         return res
 

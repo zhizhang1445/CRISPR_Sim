@@ -124,7 +124,7 @@ def init_guassian_n(params, sim_params):
     # p_marg_x = p_marg_x/np.sum(p_marg_x) # initial prob distribution for n: Gaussian dist
 
     if dim == 1:
-        array = np.zeros_like(x_linspace)
+        array = np.zeros_like(x_linspace, dtype = int)
         for i in range(N0):
             x_ind = np.random.choice(tt_len_x, p = p_marg_x)
             array[x_ind] += 1
@@ -185,7 +185,7 @@ def init_trail_nh(params, sim_params):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     M = params["M"]
-    Nh = params["Nh"]
+    Nh = int(params["Nh"])
     num_threads = sim_params["num_threads"]
     tau = params["tau"]
     v0 = params["v0"]
@@ -197,8 +197,8 @@ def init_trail_nh(params, sim_params):
     p_marg_x = trail_exp(x_linspace, 0, params, sim_params, prob=True)
 
     if dim == 1:
-        array = np.zeros_like(x_linspace)
-        for _ in range(Nh):
+        array = np.zeros_like(x_linspace, dtype=int)
+        for _ in range(M*Nh):
             x_ind = np.random.choice(tt_len_x, p = p_marg_x)
             array[x_ind] += 1
         return array
@@ -208,7 +208,7 @@ def init_trail_nh(params, sim_params):
     tt_len_y = len(y_linspace)
     p_marg_y = gaussian1D(x_linspace, 0, params, sim_params, direction="traverse", prob = True)
 
-    iter_per_thread = np.array_split(np.arange(0, Nh), num_threads)
+    iter_per_thread = np.array_split(np.arange(0, M*Nh), num_threads)
 
     def add_GaussianExptail_noise(subset):
         array = scipy.sparse.dok_matrix((tt_len_x, tt_len_y), dtype=int)

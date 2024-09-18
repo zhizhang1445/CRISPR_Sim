@@ -68,21 +68,21 @@ def norm_fitness_2D(f_sparse, n, params, sim_params):
 def phage_growth(n, f, params, sim_params, det_growth = False):
     ndim = sim_params["ndim"]
     if ndim == 1 and isinstance(f, np.ndarray):
-        return phage_growth_1D(n, f, params, sim_params, det_growth = False)
+        return phage_growth_1D(n, f, params, sim_params, det_growth)
     elif ndim == 2 and issparse(f):
-        return phage_growth_2D(n, f, params, sim_params, det_growth = False)
+        return phage_growth_2D(n, f, params, sim_params, det_growth)
     else:
         raise TypeError(f"Something went wrong with Growth| n_dim: {ndim} but type is {type(n)}")
 
 def phage_growth_1D(n, f, params, sim_params, det_growth = False):
     dt = sim_params["dt"]
 
-    n_new = np.zeros_like(n)
+    # n_new = np.zeros_like(n, dtype=int)
     if not det_growth:
         mean = np.clip((1+f*dt), a_min = 0, a_max=None)*n
-        n_new = np.random.poisson(mean)
+        n_new = np.rint(np.random.poisson(mean)).astype(int)
     else:
-        n_new = np.clip(n + f*n, a_min=0, a_max=None)
+        n_new = np.rint(np.clip(n + f*n, a_min=0, a_max=None)).astype(int)
     return n_new
 
 def phage_growth_2D(n, f_sparse, params, sim_params, deterministric_growth = False): #TODO PARALLELIZE THIS
@@ -152,7 +152,7 @@ def derivative_fitness(p_coverage, params, sim_params):
 def find_root_fitness(params, sim_params, n_itr = 1000, err = 1e-7, to_print = False):
     x_old = 0.5
 
-    for i in range(n_itr):
+    for _ in range(n_itr):
         f0 = fitness_1D(x_old, params, sim_params)
         if to_print:
             print("New Root: ", x_old,"|  New Fitness:  ", f0)

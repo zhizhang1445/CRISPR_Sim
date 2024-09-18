@@ -9,12 +9,12 @@ from numpy.random import default_rng
 from concurrent.futures import as_completed
 from supMethods import sum_parallel, timeit
 
-def num_mutants_per_loc(n, params, sim_params): #TODO PARALLELIZE THIS
+def num_mutants_per_loc_2D(n, params, sim_params): #TODO PARALLELIZE THIS
     mu = params["mu"]
     dt = sim_params["dt"]
 
     x_ind, y_ind = np.nonzero(n)
-    map = np.zeros(n.shape, dtype=np.int16)
+    map = np.zeros(n.shape, dtype=np.int32)
 
     p = 1-np.exp(-1*mu*dt)
     if scipy.sparse.issparse(n):
@@ -24,6 +24,21 @@ def num_mutants_per_loc(n, params, sim_params): #TODO PARALLELIZE THIS
     
     return map
                                     #   so p to not mutated is really e^-mu*dt
+
+def num_mutants_per_loc_1D(n, params, sim_params): #TODO PARALLELIZE THIS
+    mu = params["mu"]
+    dt = sim_params["dt"]
+
+    x_ind = np.nonzero(n)[0]
+    map = np.zeros(n.shape, dtype=int)
+
+    p = 1-np.exp(-1*mu*dt)
+    if scipy.sparse.issparse(n):
+        map[x_ind] = np.random.binomial(n[x_ind], p) #   so this is really prob of finding k mutation in n possible virus with prob p in 1-e^-mudt
+    else:
+        map[x_ind] = np.random.binomial(n[x_ind], p)
+    
+    return map
 
 def num_mutation(params, sim_params): #Sparse is not needed
     mu = params["mu"]
@@ -70,13 +85,12 @@ def mutation_jump2D(m, params, sim_params):
     return jump
 
 def mutation1D(n, params, sim_params):
-    checksum = np.sum(n)
-    mutation_map = num_mutants_per_loc(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
-    x_ind = np.nonzero(mutation_map)
-    n_to_add = np.zeros_like(n)
+    mutation_map = num_mutants_per_loc_1D(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
+    x_ind = np.nonzero(mutation_map)[0]
 
+    n_to_add = np.zeros_like(n)
     for x_i in x_ind:
-        num_mutants_at_site = mutation_map[x_ind]
+        num_mutants_at_site = mutation_map[x_i]
         n_to_add[x_i] -= num_mutants_at_site
         for j in range(num_mutants_at_site):
             num_mutation_at_site = num_mutation(params, sim_params)
@@ -99,7 +113,7 @@ def mutation2D(n, params, sim_params):
     num_threads = sim_params["num_threads"]
     checksum = np.sum(n)
 
-    mutation_map = num_mutants_per_loc(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
+    mutation_map = num_mutants_per_loc_2D(n, params, sim_params) # The mutation maps tells you how many virus have mutated at each location
     x_ind, y_ind = np.nonzero(mutation_map) #finding out where the mutations happends
 
     x_ind_subsets = np.array_split(x_ind, num_threads)
@@ -149,4 +163,4 @@ def mutation(n, params, sim_params):
     elif ndim == 2 and issparse(n):
         return mutation2D(n, params, sim_params)
     else:
-        raise TypeError(f"Something went wrong n_dim: {ndim} but type is {type(n)}")
+        raise TypeError(f"Something went wrong with Mutation| n_dim: {ndim} but type is {type(n)}")
