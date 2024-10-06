@@ -181,7 +181,7 @@ def init_uniform(init_num, sim_params):
     out = sum_parallel(results, num_threads)
     return out
 
-def init_trail_nh(params, sim_params):
+def init_trail_nh(params, sim_params, exact = False):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     M = params["M"]
@@ -194,7 +194,11 @@ def init_trail_nh(params, sim_params):
     x_linspace = np.arange(-x_range, x_range, dx)
     tt_len_x = len(x_linspace)
 
-    p_marg_x = trail_exp(x_linspace, 0, params, sim_params, prob=True)
+    if exact:
+        p_marg_x = semi_exact_nh(x_linspace, 0, params, sim_params)
+        p_marg_x = p_marg_x/np.sum(p_marg_x)
+    else:
+        p_marg_x = trail_exp(x_linspace, 0, params, sim_params, prob=True)
 
     if dim == 1:
         array = np.zeros_like(x_linspace, dtype=int)

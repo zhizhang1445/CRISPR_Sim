@@ -110,7 +110,7 @@ def semi_exact_nh(x, t, params, sim_params):
     dt_prime = 0.1
     t_prime_range = np.arange(t_prime_low, t, dt_prime)
 
-    res = np.zeros_like(x)
+    res = np.zeros_like(x, dtype=float)
     
     for t_prime in t_prime_range:
         res += A*n(x, t_prime)*memory_ker(x, t-t_prime)*dt_prime
