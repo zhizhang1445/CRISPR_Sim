@@ -21,38 +21,41 @@ def immunity_gain_from_kernel(nh, n, kernel, params, sim_params, num_to_add = No
     x_nh_sets = np.array_split(x_ind, num_threads)
     y_nh_sets = np.array_split(y_ind, num_threads)
 
-    def generate_prob(x_ind, y_ind):
-        probability = np.zeros(len(x_ind))
-        for i, (x_n, y_n) in enumerate(zip(x_ind, y_ind)):
-            multiplicity = n[x_n, y_n]
-            # print(multiplicity)
-            x_kernel = np.abs(x_n-x_max)
-            y_kernel = np.abs(y_n-y_max)
+    if params["beta"] != 0:
+        def generate_prob(x_ind, y_ind):
+            probability = np.zeros(len(x_ind))
+            for i, (x_n, y_n) in enumerate(zip(x_ind, y_ind)):
+                multiplicity = n[x_n, y_n]
+                # print(multiplicity)
+                x_kernel = np.abs(x_n-x_max)
+                y_kernel = np.abs(y_n-y_max)
 
-            if np.any((x_kernel >= conv_size, y_kernel >= conv_size)):
-                continue
-            
-            try:
-                probability[i] = multiplicity*kernel[x_kernel, y_kernel]
-                # print(multiplicity, kernel[x_kernel, y_kernel])
-            except(IndexError):
-                print("wtf? Immunity Convolution out of Bounds??", x_kernel, y_kernel)
-                break
-        return probability
+                if np.any((x_kernel >= conv_size, y_kernel >= conv_size)):
+                    continue
+                
+                try:
+                    probability[i] = multiplicity*kernel[x_kernel, y_kernel]
+                    # print(multiplicity, kernel[x_kernel, y_kernel])
+                except(IndexError):
+                    print("wtf? Immunity Convolution out of Bounds??", x_kernel, y_kernel)
+                    break
+            return probability
 
-    results = Parallel(n_jobs=num_threads)(delayed(generate_prob)
-        (x_ind, y_ind) for x_ind, y_ind in zip(x_nh_sets, y_nh_sets))
-    
-    current_prob = np.concatenate(results, axis=0)
-    Z_partition = np.sum(current_prob)
-    
-    if Z_partition == 0:
-        print("No Acquisition")
-        return nh
-    else:
-        current_prob = current_prob/Z_partition
+        results = Parallel(n_jobs=num_threads)(delayed(generate_prob)
+            (x_ind, y_ind) for x_ind, y_ind in zip(x_nh_sets, y_nh_sets))
+        
+        current_prob = np.concatenate(results, axis=0)
+        Z_partition = np.sum(current_prob)
+        
+        if Z_partition == 0:
+            print("No Acquisition")
+            return nh
+        else:
+            current_prob = current_prob/Z_partition
 
-    def add_points(itr_list):
+    else: current_prob = None
+
+    def add_points(itr_list, current_prob = None):
         array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
         sample_ind = np.random.choice(support_size, len(itr_list), p = current_prob)
         for i in sample_ind:
@@ -65,7 +68,7 @@ def immunity_gain_from_kernel(nh, n, kernel, params, sim_params, num_to_add = No
     sub_itr_sets = np.array_split(main_itr, num_threads)
     
     results = Parallel(n_jobs=num_threads)(delayed(add_points)
-        (itr) for itr in sub_itr_sets)
+        (itr, current_prob) for itr in sub_itr_sets)
     
     nh_integrated = nh+np.sum(results, axis = 0)
     return nh_integrated
@@ -122,6 +125,7 @@ def immunity_loss_uniform(nh, n, params, sim_params, num_to_remove = None):
         delayed(remove_points)(sub_index_w_repeats, sub_num_to_remove) 
             for sub_index_w_repeats, sub_num_to_remove 
             in zip(set_index_w_repeats, set_num_to_remove))
+    
     nh = nh + np.sum(results, axis=0)
 
     # if np.abs(np.sum(nh) - Nh*M) > 10 and (num_to_remove == std_remove_num):
@@ -145,7 +149,7 @@ def immunity_gain_from_probability(nh, n, current_prob, params, sim_params, num_
     x_ind, y_ind = n.nonzero()
     support_size = len(x_ind)
 
-    def add_points(itr_list):
+    def add_points(itr_list, current_prob):
         array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
         sample_ind = np.random.choice(support_size, len(itr_list), p = current_prob)
         for i in sample_ind:
@@ -158,7 +162,7 @@ def immunity_gain_from_probability(nh, n, current_prob, params, sim_params, num_
     sub_itr_sets = np.array_split(main_itr, num_threads)
     
     results = Parallel(n_jobs=num_threads)(delayed(add_points)
-        (itr) for itr in sub_itr_sets)
+        (itr,current_prob) for itr in sub_itr_sets)
     
     nh_integrated = nh+np.sum(results, axis = 0)
     return nh_integrated
