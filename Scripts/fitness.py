@@ -3,47 +3,24 @@ import numpy.ma as ma
 import scipy
 from scipy.ndimage import convolve
 from scipy import signal
+from scipy.sparse import issparse
 from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
 from supMethods import timeit
 from concurrent.futures import as_completed
-from formulas import find_max_value_location
+from formulas import p_infection, binomial_pdf
 
-def alpha(d, params): #This doesn't need to be sparsed
-    dc = params["dc"]
-    h = params["h"]
-
-    return d**h/(d**h + dc**h)
-
-def binomial_pdf(n, x, p_dense): #TODO Not Tested but sparsed in Theory
-    if scipy.sparse.issparse(n):
-        x_ind, y_ind = np.nonzero(n)
-        multiplicity = scipy.sparse.dok_matrix(n.shape)
-        multiplicity[x_ind, y_ind] = scipy.special.binom(n[x_ind, y_ind].todense(), x)
+def fitness(n, p, params, sim_params):
+    ndim = sim_params["ndim"]
+    if ndim == 1 and isinstance(p, np.ndarray):
+        return fitness_1D(p, params, sim_params)
+    elif ndim == 2 and issparse(n):
+        return fitness_2D(n, p, params, sim_params)
     else:
-        multiplicity = scipy.special.binom(n, x)
+        raise TypeError(f"Something went wrong with fitness n_dim: {ndim} but type is {type(n)}")
 
-    bernouilli = np.power(p_dense, x)*np.power((1-p_dense), (n-x))
-    return multiplicity*bernouilli
-
-def p_zero_spacer(p_dense, params, sim_params): #TODO SPARSE
-    M = params["M"]
-    return binomial_pdf(M, 0, p_dense)
-
-def p_single_spacer(p_dense, params, sim_params): #TODO Sparsed in Theory
-    M = params["M"]
-    Np = params["Np"]
-
-    p_1_spacer = binomial_pdf(M, 1, p_dense)
-    p_shared = 0
-    for d in range(0, Np+1):
-        p_shared += binomial_pdf(Np, d, 1/M)*p_1_spacer*(1-alpha(d, params))
-    return p_shared
-
-def fitness_spacers(n, nh, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
+def fitness_2D(n, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
     R0 = params["R0"]
-    Nh = params["Nh"]
-    M = params["M"]
     res = scipy.sparse.dok_matrix(n.shape, dtype=float)
 
     x_ind, y_ind = np.nonzero(p_sparse) #also == np.nonzero(n)
@@ -52,10 +29,7 @@ def fitness_spacers(n, nh, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
     if np.sum(p_dense) == 0:
         raise ValueError("Zero spacer probability")
     
-    p_0_spacer = p_zero_spacer(p_dense, params, sim_params)
-    p_1_spacer = p_single_spacer(p_dense, params, sim_params)
-    p_tt = p_0_spacer + p_1_spacer
-    # p_tt = np.power((1-p_dense), M)
+    p_tt = p_infection(p_dense, params, sim_params)
 
     if np.min(p_tt) < 0:
         raise ValueError("Negative Probability")
@@ -64,19 +38,26 @@ def fitness_spacers(n, nh, p_sparse, params, sim_params): #TODO PARALLELIZE THIS
     res[x_ind, y_ind] = np.log(R0*p_tt)
     return res
 
+def fitness_1D(p_coverage, params, sim_params):
+    R0 = params["R0"]
 
-def fitness_spacers_fast(f_prev, shift, params):
-    x_ind, y_ind = np.nonzero(f_prev)
-    shift_x, shift_y = shift
+    p_inf = p_infection(p_coverage, params, sim_params)
+    fit = np.log(R0*p_inf)
+    return fit
 
-    res = scipy.sparse.dok_matrix(f_prev.shape, dtype = float)
-    try:
-        res[x_ind+shift_x, y_ind+shift_y] = f_prev[x_ind, y_ind]
-    except IndexError:
-        return f_prev
-    return res
+def norm_fitness(f, n, params, sim_params):
+    ndim = sim_params["ndim"]
+    if ndim == 1 and isinstance(f, np.ndarray):
+        f_avg = np.sum(f*n)/np.sum(n)
+        new_f = f-f_avg
 
-def norm_fitness(f_sparse, n, params, sim_params, return_avg = False):
+        return new_f
+    elif ndim == 2 and issparse(f):
+        return norm_fitness_2D(f, n, params, sim_params)
+    else:
+        raise TypeError(f"Something went wrong with Norm_F| n_dim: {ndim} but type is {type(n)}")
+
+def norm_fitness_2D(f_sparse, n, params, sim_params):
     f_avg = np.sum(f_sparse.multiply(n))/np.sum(n)
 
     x_ind, y_ind = f_sparse.nonzero()
@@ -87,7 +68,27 @@ def norm_fitness(f_sparse, n, params, sim_params, return_avg = False):
     else:
         return new_f
 
-def virus_growth(n, f_sparse, params, sim_params, deterministric_growth = False): #TODO PARALLELIZE THIS
+def phage_growth(n, f, params, sim_params, det_growth = False):
+    ndim = sim_params["ndim"]
+    if ndim == 1 and isinstance(f, np.ndarray):
+        return phage_growth_1D(n, f, params, sim_params, det_growth)
+    elif ndim == 2 and issparse(f):
+        return phage_growth_2D(n, f, params, sim_params, det_growth)
+    else:
+        raise TypeError(f"Something went wrong with Growth| n_dim: {ndim} but type is {type(n)}")
+
+def phage_growth_1D(n, f, params, sim_params, det_growth = False):
+    dt = sim_params["dt"]
+
+    # n_new = np.zeros_like(n, dtype=int)
+    if not det_growth:
+        mean = np.clip((1+f*dt), a_min = 0, a_max=None)*n
+        n_new = np.rint(np.random.poisson(mean)).astype(int)
+    else:
+        n_new = np.rint(np.clip(n + f*n, a_min=0, a_max=None)).astype(int)
+    return n_new
+
+def phage_growth_2D(n, f_sparse, params, sim_params, deterministric_growth = False): #TODO PARALLELIZE THIS
     dt = sim_params["dt"]
     x_ind, y_ind = n.nonzero()
     if scipy.sparse.issparse(f_sparse):
@@ -97,11 +98,10 @@ def virus_growth(n, f_sparse, params, sim_params, deterministric_growth = False)
 
     if scipy.sparse.issparse(n):
         n_dense = np.array(n[x_ind, y_ind].todense())
+        n_new = scipy.sparse.dok_matrix(n.shape, dtype = int)
     else:
         n_dense = n[x_ind, y_ind]
-
-
-    n_new = scipy.sparse.dok_matrix(n.shape, dtype = int)
+        n_new = np.zeros_like(n)
 
     if not deterministric_growth:
         mean = np.clip((1+f_dense*dt), a_min = 0, a_max=None)*n_dense
@@ -110,22 +110,61 @@ def virus_growth(n, f_sparse, params, sim_params, deterministric_growth = False)
         n_new[x_ind, y_ind] = np.clip(n_dense + f_dense*n_dense, a_min=0, a_max=None)
     return  n_new
 
-def pred_value(params, sim_params):
-    erf = scipy.special.erf
-    var_nh = sim_params["initial_var_nh"]
-    r = params["r"]
-    const = np.exp(-var_nh**2/(2*np.power(r,2)))
-    neg_exp = lambda x: (1/2)*np.exp(-x/r)
-    pos_exp = lambda x: (1/2)*np.exp(x/r)
+def fitness_n_spacers(p_coverage, params, sim_params):
+    M = params["M"]
+    R0 = params["R0"]
+    Np = params["Np"]
+    dc = params["dc"]
 
-    div_const = 1/(var_nh*np.sqrt(2))
-    erf_mean = var_nh**2/r
-    neg_erf = lambda x: erf(div_const*(x-erf_mean))
-    pos_erf = lambda x: erf(div_const*(x+erf_mean))
+    def p_n_infection(p_coverage, M, Np, dc):
+        p_infection = (1-p_coverage)**M
 
-    def anal_result(x):
-        return const*(neg_exp(x)*(neg_erf(x)+1)-pos_exp(x)*(pos_erf(x)-1))
+        for n in range(1, M+1):
+            p_n_spacer = binomial_pdf(M, n, p_coverage)
+            for d in range(0, dc+1):
+                p_infection += binomial_pdf(Np, d, n/M)*p_n_spacer
+        return p_infection
     
-    def anal_delay(x):
-        return anal_result(x-erf_mean)
-    return anal_delay
+    p_inf = p_n_infection(p_coverage, M, Np, dc)
+    return np.log(R0*p_inf)
+
+def derivative_p_infection(p_coverage, params, sim_params):
+    M = params["M"]
+    R0 = params["R0"]
+    Np = params["Np"]
+    dc = params["dc"]
+    n_order_spacer = params["n_spacer"]
+    if n_order_spacer > M:
+        n_order_spacer = M
+
+    derivative_p_infection = 0
+    for n in range(0, n_order_spacer+1):
+        derivative_p_n_spacer = n*(binomial_pdf(M, n, p_coverage)/p_coverage)
+        derivative_p_n_spacer -= (M-n)*(binomial_pdf(M, n, p_coverage)/(1-p_coverage))
+
+        for d in range(0, dc+1):
+            derivative_p_infection += binomial_pdf(Np, d, n/M)*derivative_p_n_spacer
+    return derivative_p_infection
+
+def derivative_fitness(p_coverage, params, sim_params):
+    p_inf = p_infection(p_coverage, params, sim_params)
+    derivative_p_inf = derivative_p_infection(p_coverage, params, sim_params)
+    derivative_fit = (1/p_inf)*derivative_p_inf
+    return derivative_fit
+
+def find_root_fitness(params, sim_params, n_itr = 1000, err = 1e-7, to_print = False):
+    x_old = 0.5
+
+    for _ in range(n_itr):
+        f0 = fitness_1D(x_old, params, sim_params)
+        if to_print:
+            print("New Root: ", x_old,"|  New Fitness:  ", f0)
+        f_prime = derivative_fitness(x_old, params, sim_params)
+        
+        x_new = x_old - (f0/f_prime)
+        if np.abs(x_new - x_old) < err:
+            break
+        x_old = x_new
+
+    return x_new
+

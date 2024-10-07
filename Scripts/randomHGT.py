@@ -1,8 +1,6 @@
 import numpy as np
 import numpy.ma as ma
 import scipy
-from supMethods import timeit
-from formulas import find_max_value_location
 
 def get_time_next_HGT(current_t, params, sim_params):
     rate_event = params["rate_HGT"]

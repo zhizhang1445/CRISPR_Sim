@@ -1,7 +1,8 @@
 import numpy as np
 import numpy.ma as ma
 import scipy
-from scipy.ndimage import convolve
+# from scipy.ndimage import convolve
+from scipy.signal import convolve
 from scipy import signal
 from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
@@ -230,3 +231,10 @@ def double_elementwise_coverage(nh, n, coverage_kernel, acquisition_kernel, para
     out_coverage = np.sum(results_cov, axis=0)/M
     out_acquisition = np.sum(results_acq, axis=0)/np.sum(results_acq)
     return out_coverage, out_acquisition
+
+def coverage_1D(nh, kernel1D, params, sim_params):
+    M = params["M"]
+    Nh = params["Nh"]
+    input_h = nh/(M*Nh)
+    convolution = convolve(input_h, kernel1D, mode="same")
+    return convolution
