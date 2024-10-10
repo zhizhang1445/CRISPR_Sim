@@ -75,14 +75,13 @@ def immunity_update(nh, n, params, sim_params):
 def immunity_mean_field_1D(nh, n, params, sim_params):
     Nh = params["Nh"]
     M = params["M"]
-    nh_integrated = nh + n
-    total_number = np.sum(nh_integrated)
-    num_to_remove = int(total_number - Nh*M)
-    ratio = 1-(num_to_remove/total_number)
+    A = params["A"]
+    nh_integrated = nh + A*n
 
-    nh_new = np.zeros_like(nh)
-    for i, value in enumerate(nh):
-        nh_new[i] = int(np.rint(value*ratio))
+    prob = (nh_integrated/np.sum(nh_integrated))
+
+    nh_new = nh_integrated - A*np.sum(n)*prob
+    nh_new = np.rint(nh_new).astype(int)
 
     new_tt_number = np.sum(nh_new)
     error = int(Nh*M) - int(new_tt_number)
@@ -97,12 +96,11 @@ def immunity_mean_field_1D(nh, n, params, sim_params):
 
     if error < 0:
         while(error < 0):
-            print(x_inds)
+            # print(x_inds)
             x_ind = np.random.choice(x_inds)
             if nh_new[x_ind] > 0:
                 nh_new[x_ind] -= 1
                 error += 1
-
 
     if np.sum(nh_new) != np.ceil(Nh*M):
         raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new))

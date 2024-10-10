@@ -1,3 +1,4 @@
+from matplotlib.pyplot import xlim
 import numpy as np
 import scipy
 import json
@@ -224,6 +225,12 @@ def calc_diff_const(params, sim_params):
 
     diff_const = mu*prod_var/2
     return diff_const
+
+def get_xdomain(params, sim_params):
+    x_lim = sim_params["xdomain"]
+    dx = sim_params["dx"]
+    x_range = np.arange(-x_lim, x_lim, dx)
+    return x_range
 
 def compute_shift(nh, nh_prev, type = "max"):
 

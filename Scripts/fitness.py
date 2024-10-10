@@ -57,7 +57,7 @@ def norm_fitness(f, n, params, sim_params):
     else:
         raise TypeError(f"Something went wrong with Norm_F| n_dim: {ndim} but type is {type(n)}")
 
-def norm_fitness_2D(f_sparse, n, params, sim_params):
+def norm_fitness_2D(f_sparse, n, params, sim_params, return_avg = False):
     f_avg = np.sum(f_sparse.multiply(n))/np.sum(n)
 
     x_ind, y_ind = f_sparse.nonzero()

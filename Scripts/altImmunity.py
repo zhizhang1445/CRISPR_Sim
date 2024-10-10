@@ -144,8 +144,6 @@ def immunity_gain_from_kernel_2D(nh, n, kernel, params, sim_params, num_to_add =
         else:
             current_prob = current_prob/Z_partition
 
-    else: current_prob = None
-
     def add_points(itr_list, current_prob = None):
         array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
         sample_ind = np.random.choice(support_size, len(itr_list), p = current_prob)

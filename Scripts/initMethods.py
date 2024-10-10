@@ -1,3 +1,4 @@
+from networkx import difference
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
@@ -121,14 +122,26 @@ def init_guassian_n(params, sim_params):
     tt_len_x = len(x_linspace)
     
     p_marg_x = gaussian1D(x_linspace, 0, params, sim_params, prob = True)
-    # p_marg_x = p_marg_x/np.sum(p_marg_x) # initial prob distribution for n: Gaussian dist
 
     if dim == 1:
-        array = np.zeros_like(x_linspace, dtype = int)
-        for i in range(N0):
-            x_ind = np.random.choice(tt_len_x, p = p_marg_x)
-            array[x_ind] += 1
-        return array
+        n = np.rint(gaussian1D(x_linspace, 0,  params, sim_params)).astype(int)        
+        total_n = np.sum(n)
+        error = N0 - total_n
+        
+        x_inds = np.nonzero(n)[0]
+
+        if error > 0:
+            for _ in range(error):
+                x_ind = np.random.choice(x_inds)
+                n[x_ind] += 1
+
+        if error < 0:
+            while(error < 0):
+                x_ind = np.random.choice(x_inds)
+                if n[x_ind] > 0:
+                    n[x_ind] -= 1
+                    error += 1
+        return n
 
     # 2D initialization
     tt_len_y = len(y_linspace)
@@ -201,10 +214,23 @@ def init_trail_nh(params, sim_params, exact = False):
         p_marg_x = trail_exp(x_linspace, 0, params, sim_params, prob=True)
 
     if dim == 1:
-        array = np.zeros_like(x_linspace, dtype=int)
-        for _ in range(M*Nh):
-            x_ind = np.random.choice(tt_len_x, p = p_marg_x)
-            array[x_ind] += 1
+        array = np.rint(semi_exact_nh(x_linspace, 0,  params, sim_params)).astype(int)        
+        total_nh = np.sum(array)
+        error = M*Nh - total_nh
+
+        x_inds = np.nonzero(array)[0]
+
+        if error > 0:
+            for _ in range(error):
+                x_ind = np.random.choice(x_inds)
+                array[x_ind] += 1
+
+        if error < 0:
+            while(error < 0):
+                x_ind = np.random.choice(x_inds)
+                if array[x_ind] > 0:
+                    array[x_ind] -= 1
+                    error += 1
         return array
     
     #2D simulations

@@ -192,9 +192,10 @@ def plot_wave_coverage(params, sim_params, ax = None):
     x= np.arange(-20*sigma_n, 6*sigma_n, 0.1)
     ax.plot(x, gaussian1D(x, 0, params,sim_params)/np.sum(params["N"]))
     ax.plot(x, trail_exp(x, 0, params,sim_params)/np.sum(params["Nh"]))
+
     ax.plot(x, theoretical_c(x, 0, params, sim_params, direction="Full"), label = "Proj. Approx")
-    ax.plot(x, semi_true_c(x, 0, params, sim_params), label = "Num. Approx")
-    # plt.plot(x, semi_true_c(x, 0, params, sim_params, "trail"), label = "Approx c")
+    # ax.plot(x, semi_true_c(x, 0, params, sim_params, how_true="true"), label = "Num. Approx")
+    ax.plot(x, semi_true_c(x, 0, params, sim_params, "trail"), label = "Approx c")
     ax.axvline([0], 0, np.max(theoretical_c(x, 0, params, sim_params)), linestyle = "--", color = "k", label = "Wave Center")
     ax.set_title("Traveling Wave Coverage")
     ax.set_xlabel("Antigenic Distance")
@@ -258,7 +259,7 @@ def plot_fitness_memory_dynamics(params, sim_params, ax = None):
     if ax is None:
         fig, ax = plt.subplots()
     x = np.arange(-3*sigma_n, 3*sigma_n, 0.1)
-    M_range = np.arange(1, 20, 1)
+    M_range = np.arange(1, 30, 1)
 
     n = gaussian1D(x, 0, params, sim_params)
     ind = np.where(n>=1)
