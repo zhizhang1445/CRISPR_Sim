@@ -141,6 +141,84 @@ def immunity_mean_field(nh, n, params, sim_params):
 
     return nh
 
+def immunity_mean_field_1D_remove(nh_integrated, n, params, sim_params):
+    Nh = params["Nh"]
+    M = params["M"]
+    total_number = np.sum(nh_integrated)
+    num_to_remove = int(total_number - Nh*M)
+    ratio = 1-(num_to_remove/total_number)
+
+    nh_new = np.zeros_like(n)
+    for i, value in enumerate(nh_integrated):
+        nh_new[i] = int(np.rint(value*ratio))
+
+    new_tt_number = np.sum(nh_new)
+    error = int(Nh*M) - int(new_tt_number)
+    # print(error)
+    
+    x_inds = np.nonzero(nh_new)[0]
+
+    if error > 0:
+        for _ in range(error):
+            x_ind = np.random.choice(x_inds)
+            nh_new[x_ind] += 1
+
+    if error < 0:
+        while(error < 0):
+            print(x_inds)
+            x_ind = np.random.choice(x_inds)
+            if nh_new[x_ind] > 0:
+                nh_new[x_ind] -= 1
+                error += 1
+
+
+    if np.sum(nh_new) != np.ceil(Nh*M):
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new))
+    
+    if np.min(nh_new) < 0:
+        raise ValueError("bacteria population is negative")
+
+    return nh_new
+
+def immunity_mean_field_1D_add(nh, n, params, sim_params):
+    Nh = params["Nh"]
+    M = params["M"]
+    nh_integrated = nh + n
+    total_number = np.sum(nh_integrated)
+    num_to_remove = int(total_number - Nh*M)
+    ratio = 1-(num_to_remove/total_number)
+
+    nh_new = np.zeros_like(nh)
+    for i, value in enumerate(nh):
+        nh_new[i] = int(np.rint(value*ratio))
+
+    new_tt_number = np.sum(nh_new)
+    error = int(Nh*M) - int(new_tt_number)
+    # print(error)
+    
+    x_inds = np.nonzero(nh_new)[0]
+
+    if error > 0:
+        for _ in range(error):
+            x_ind = np.random.choice(x_inds)
+            nh_new[x_ind] += 1
+
+    if error < 0:
+        while(error < 0):
+            print(x_inds)
+            x_ind = np.random.choice(x_inds)
+            if nh_new[x_ind] > 0:
+                nh_new[x_ind] -= 1
+                error += 1
+
+
+    if np.sum(nh_new) != np.ceil(Nh*M):
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new))
+    
+    if np.min(nh_new) < 0:
+        raise ValueError("bacteria population is negative")
+
+    return nh_new
 # @timeit
 def immunity_update_SerialChoice(nh, n, params, sim_params):
     Nh = params["Nh"]
