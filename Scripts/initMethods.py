@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import scipy
 from scipy.linalg import norm
 from joblib import Parallel, delayed
+from sympy import check_assumptions
 from formulas import calc_diff_const, trail_exp
 from randomHGT import get_time_next_HGT
 from supMethods import sum_parallel
@@ -13,17 +14,42 @@ from formulas import gaussian1D, semi_exact_nh
 
 def return_v_tau(params, sim_params):
     r = params["r"]
+    D = params["D"]
+
+    try:
+        sigma = params["sigma"]
+        uc = params["uc"]
+    except KeyError:
+        sigma = 1
+        uc = 1/(4*D)
+
+    beta = params["beta"]
+    delay = np.min([np.abs(beta*(sigma**2)), uc])
+
     root_c = find_root_fitness(params, sim_params)
+    root_c = root_c*np.exp(np.sign(params["beta"])*delay/r)
     A = root_c/(1-root_c)
     return r/A
 
 def return_s(params, sim_params):
     r = params["r"]
+    D = params["D"]
 
-    c_0 = find_root_fitness(params, sim_params)
-    derivative_c_0 = c_0*(-1/r)
-    der_fit = derivative_fitness(c_0, params, sim_params)
-    return derivative_c_0*der_fit
+    try:
+        sigma = params["sigma"]
+        uc = params["uc"]
+    except KeyError:
+        sigma = 1
+        uc = 1/(4*D)
+
+    beta = params["beta"]
+    delay = np.min([np.abs(beta*(sigma**2)), uc])
+
+    c_root = find_root_fitness(params, sim_params)
+    # c_root = c_root*np.exp(delay/r)
+    derivative_c_root = c_root*(-1/r)
+    der_fit = derivative_fitness(c_root, params, sim_params)
+    return derivative_c_root*der_fit
 
 def fill_parameters(params, sim_params):
     R0 = params["R0"]
@@ -54,7 +80,10 @@ def fill_parameters(params, sim_params):
     params["M0"] = M
     return params, sim_params
 
-def init_cond(params, sim_params, out_print = False):
+def init_cond(params, sim_params, out_print = False, assumption_check = True):
+    params = copy.deepcopy(params)
+    sim_params = copy.deepcopy(sim_params)
+    
     Nh = params["Nh"]
     N0 = params["N0"]
     params["N"] = N0
@@ -89,42 +118,49 @@ def init_cond(params, sim_params, out_print = False):
                 print(f"Phage Population: {N:.4f}| Uc: {uc:.4f}| sigma: {sigma:.4f}")
             break
 
-    uc = params["uc"]
     sigma = params["sigma"]
-    params["N0"] = params["N"] #update actual N
+    delay = params["beta"]*(sigma**2)
+    uc = params["uc"]
+    params["delay"] = np.min([delay, uc])
+    params["N0"] = int(params["N"]) #update actual N
+    params["M0"] = int(params["M"])
+    params["M"] = int(params["M"])
+    
     sim_params["initial_var_n"] = sigma
     sim_params["initial_var_nh"] = np.sqrt(1.66*np.power(sigma, 2))
     sim_params["time_next_event"] = get_time_next_HGT(0, params, sim_params)
 
-    print("Assumptions Checks: ")
-
     mu = params["mu"]
-    print(f"mu >> 1 : mu = {mu} >> 1")
-
     gamma_shape = params["gamma_shape"]
     r = params["r"]
-    print(f"del_x << r : gamma_shape = {gamma_shape} << r = {r}")
-
     v_tau = return_v_tau(params, sim_params)
-    print(f"v*tau >> sigma : v*tau = {v_tau} >> sigma = {sigma}")
 
-    print(f"uc << r : uc = {uc} << r = {r}")
+    if assumption_check:
+        print("Assumptions Checks: ")
+        print(f"mu >> 1 : mu = {mu} >> 1")
+        print(f"del_x << r : gamma_shape = {gamma_shape} << r = {r}")
+        print(f"v*tau >> sigma : v*tau = {v_tau} >> sigma = {sigma}")
+        print(f"uc << r : uc = {uc} << r = {r}")
+        print(f"uc_delayed >> beta_sigma**2 : uc delayed = {uc} >> beta_sigma**2 = {np.abs(delay)}")
     return params, sim_params
 
-def init_guassian_n(params, sim_params):
+def init_guassian_n(params, sim_params, t=0):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     dim = sim_params["ndim"]
     N0 = params["N"]
     num_threads = sim_params["num_threads"]
+    beta = params["beta"]
+    sigma = params["sigma"]
+    primed_delay = -1*beta*(sigma**2)
 
     x_linspace = np.arange(-x_range, x_range, dx)
     tt_len_x = len(x_linspace)
     
-    p_marg_x = gaussian1D(x_linspace, 0, params, sim_params, prob = True)
+    p_marg_x = gaussian1D(x_linspace, t, params, sim_params, prob = True)
 
     if dim == 1:
-        n = np.rint(gaussian1D(x_linspace, 0,  params, sim_params)).astype(int)        
+        n = np.rint(gaussian1D(x_linspace, t,  params, sim_params)).astype(int)        
         total_n = np.sum(n)
         error = N0 - total_n
         
@@ -144,9 +180,9 @@ def init_guassian_n(params, sim_params):
         return n
 
     # 2D initialization
-    tt_len_y = len(y_linspace)
     y_linspace = np.arange(-x_range, x_range, dx)
-    p_marg_y = gaussian1D(x_linspace, 0, params, sim_params, direction="transverse", prob=True)
+    tt_len_y = len(y_linspace)
+    p_marg_y = gaussian1D(x_linspace, t, params, sim_params, direction="transverse", prob=True)
     # p_marg_y = p_marg_y/np.sum(p_marg_y) 
 
     iter_per_thread = np.array_split(np.arange(0, N0), num_threads)
@@ -155,8 +191,8 @@ def init_guassian_n(params, sim_params):
         array = scipy.sparse.dok_matrix((tt_len_x, tt_len_y), dtype=int)
 
         for i in subset:
-            x_index = np.random.choice(tt_len_x, p=p_marg_x) 
-            y_index = np.random.choice(tt_len_y, p=p_marg_y) 
+            x_index = np.random.choice(tt_len_x, p=p_marg_x)
+            y_index = np.random.choice(tt_len_y, p=p_marg_y)
             array[x_index, y_index]+= 1
         return array
 
@@ -167,7 +203,7 @@ def init_guassian_n(params, sim_params):
     out = sum_parallel(results, num_threads)
     return out
 
-def init_uniform(init_num, sim_params):
+def init_uniform(init_num, sim_params, t = 0):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     N = init_num
@@ -194,7 +230,7 @@ def init_uniform(init_num, sim_params):
     out = sum_parallel(results, num_threads)
     return out
 
-def init_trail_nh(params, sim_params, exact = False):
+def init_trail_nh(params, sim_params, exact = False, t= 0):
     x_range = sim_params["xdomain"] #Initialize the spaces
     dx = sim_params["dx"]
     M = params["M"]
@@ -207,14 +243,11 @@ def init_trail_nh(params, sim_params, exact = False):
     x_linspace = np.arange(-x_range, x_range, dx)
     tt_len_x = len(x_linspace)
 
-    if exact:
-        p_marg_x = semi_exact_nh(x_linspace, 0, params, sim_params)
-        p_marg_x = p_marg_x/np.sum(p_marg_x)
-    else:
-        p_marg_x = trail_exp(x_linspace, 0, params, sim_params, prob=True)
+    p_marg_x = semi_exact_nh(x_linspace,t , params, sim_params)
+    p_marg_x = p_marg_x/np.sum(p_marg_x)
 
     if dim == 1:
-        array = np.rint(semi_exact_nh(x_linspace, 0,  params, sim_params)).astype(int)        
+        array = np.rint(semi_exact_nh(x_linspace, t,  params, sim_params)).astype(int)        
         total_nh = np.sum(array)
         error = M*Nh - total_nh
 
@@ -236,7 +269,7 @@ def init_trail_nh(params, sim_params, exact = False):
     #2D simulations
     y_linspace = np.arange(-x_range, x_range, dx)
     tt_len_y = len(y_linspace)
-    p_marg_y = gaussian1D(x_linspace, 0, params, sim_params, direction="traverse", prob = True)
+    p_marg_y = gaussian1D(x_linspace, t, params, sim_params, direction="traverse", prob = True)
 
     iter_per_thread = np.array_split(np.arange(0, M*Nh), num_threads)
 
@@ -322,8 +355,11 @@ def init_1D_kernel(params, sim_params, ker_type = "coverage", exponent = 1): #Ke
     else:
         raise NotImplementedError
     
-    dx =sim_params["dx"]
+    dx = sim_params["dx"]
     conv_ker_size = sim_params["conv_size"]
+
+    if kernel < 0:
+        conv_ker_size = 4*np.rint(params["sigma"]).astype(int)
 
     x_linspace = np.arange(-conv_ker_size, conv_ker_size, dx)
 

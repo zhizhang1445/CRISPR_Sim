@@ -127,31 +127,30 @@ def mutation2D(n, params, sim_params):
 
             for j in range(num_mutants_at_site): #Find out where those virus have moved to
                 num_mutation_at_site = num_mutation(params, sim_params) #Sampling how many single mutation for a single virus (num of jumps) 
-                jump = mutation_jump2D(num_mutation_at_site, params, sim_params) #Sampling the jump
+                jump = mutation_jump2D(num_mutation_at_site, params, sim_params) #Sampling the jump distance
 
-                try:
-                    new_x_loc = (x_i + jump[0]).astype(int)
-                    new_y_loc = (y_i + jump[1]).astype(int)
-                    n_to_add[new_x_loc, new_y_loc] += 1
-                except IndexError: #Array Out of Bounds
-                    if new_x_loc < 0:
-                        new_x_loc = 0
-                    if new_y_loc < 0:
-                        new_y_loc = 0
+                new_x_loc = (x_i + jump[0]).astype(int)
+                new_y_loc = (y_i + jump[1]).astype(int)
 
-                    if new_x_loc >= n.shape[0]:
-                        new_x_loc = n.shape[0]-1 #lmao this is gonna be a pain in cpp
-                    if new_y_loc >= n.shape[1]:
-                        new_y_loc = n.shape[1]-1
+                if new_x_loc < 0:
+                    new_x_loc = 0
+                if new_y_loc < 0:
+                    new_y_loc = 0
 
-                    n_to_add[new_x_loc, new_y_loc] += 1
+                if new_x_loc >= n.shape[0]:
+                    new_x_loc = n.shape[0]-1
+                if new_y_loc >= n.shape[1]:
+                    new_y_loc = n.shape[1]-1
+                
+                n_to_add[new_x_loc, new_y_loc] += 1
+
         return n_to_add
 
-    results = Parallel(n_jobs=num_threads)(delayed(mutation_single)(x_ind, y_ind) for x_ind, y_ind in zip(x_ind_subsets, y_ind_subsets))
+    results = Parallel(n_jobs=num_threads, backend='threading')(delayed(mutation_single)(x_ind, y_ind) for x_ind, y_ind in zip(x_ind_subsets, y_ind_subsets))
     # results = mutation_single(x_ind, y_ind)
     # n = n+results
 
-    n = n + sum_parallel(results, axis = 0)
+    n = n + sum_parallel(results, num_threads)
     if checksum != np.sum(n):
         raise ValueError("Cries cuz Bacteria died during mutation")
     return n

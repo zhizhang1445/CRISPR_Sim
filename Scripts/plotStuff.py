@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import os
 
 from trajsTree import TreeNode
-from supMethods import extract_xy, average_of_pairs
-from formulas import calculate_FisherVelocity, calculate_velocity, calculate_var
+from supMethods import extract_xy, average_of_pairs, calculate_velocity, calculate_var, calculate_FisherVelocity
+# from formulas import calculate_FisherVelocity, calculate_velocity, calculate_var
 
 def from_all_root(data_all_root: np.ndarray):
     mean = np.mean(data_all_root)

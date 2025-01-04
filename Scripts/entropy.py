@@ -4,10 +4,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import scipy
 
-from formulas import find_max_value_location
+# from formulas import find_max_value_location
 from trajectory import fit_GMM
 from supMethods import load_outputs, read_json
-from fitness import norm_fitness, virus_growth
+from fitness import norm_fitness, phage_growth
 from mutation import mutation
 
 def compute_entropy(array, dim = 2, k=1):
@@ -76,7 +76,7 @@ def get_entropy_change(t_domain, foldername, to_plot = True, to_save_folder = No
         mean_f = np.mean(f_norm[x_ind, y_ind])
         fitness_time.append(mean_f)
 
-        n_intermediate = virus_growth(n_old, f_norm, params, sim_params)
+        n_intermediate = phage_growth(n_old, f_norm, params, sim_params)
         n_mutated = mutation(n_intermediate, params, sim_params)
 
         entropy_change_growth = compute_entropy_change(n_intermediate, n_old)

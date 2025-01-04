@@ -9,10 +9,10 @@ import sys
 import random
 
 sys.path.insert(0, "../Scripts")
-from initMethods import init_cond, init_exptail, init_quarter_kernel, init_guassian
-from coverage import elementwise_coverage
+from initMethods import init_cond, init_dict_kernel, init_exptail, init_quarter_kernel, init_guassian
+from coverage import elementwise_coverage_vectorized, double_vectorized_coverage
 from altImmunity import immunity_gain_from_kernel, immunity_loss_uniform
-from immunity import immunity_update
+from immunity import immunity_mean_field_add, immunity_mean_field_remove
 from fitness import virus_growth, norm_fitness, fitness_spacers
 from mutation import mutation
 from formulas import compute_shift
@@ -85,7 +85,11 @@ def main(params, sim_params, normalize_f = True) -> int :
         try:
             st1 = time.time()
             params, sim_params = read_json(foldername)
-            kernel_conv = init_quarter_kernel(params, sim_params)
+
+            if params["beta"] != 0:
+                kernel_acq_dict = init_dict_kernel(params, sim_params, "beta")
+
+            kernel_dict = init_dict_kernel(params, sim_params)
             kernel_immunity = init_quarter_kernel(params, sim_params, type="Boltzmann")
             t, n, nh = load_last_output(foldername)
             nh_total = params["Nh"]
@@ -112,7 +116,10 @@ def main(params, sim_params, normalize_f = True) -> int :
         st1: float = time.time()
         n = init_guassian(params["N"], sim_params, "n")
         nh = init_exptail(params["Nh"]*params["M0"], params, sim_params, "nh")
-        kernel_conv = init_quarter_kernel(params, sim_params)
+
+        if params["beta"] != 0:
+            kernel_acq_dict = init_dict_kernel(params, sim_params, "beta")
+        kernel_dict= init_dict_kernel(params, sim_params)
         kernel_immunity = init_quarter_kernel(params, sim_params, type="Boltzmann")
         ed = time.time()
             
@@ -134,7 +141,12 @@ def main(params, sim_params, normalize_f = True) -> int :
                 sparse.save_npz(foldername+f"/sp_frame_nh{t}",nh.tocoo())
 
             st1:float = time.time()
-            p = elementwise_coverage(nh, n, kernel_conv, params, sim_params)
+            if params["beta"] != 0:
+                p, int_prob = double_vectorized_coverage(nh, n, kernel_dict, kernel_acq_dict, params, sim_params)
+            else:
+                int_prob = None
+                p = elementwise_coverage_vectorized(nh, n, kernel_dict, params, sim_params)
+
             st2 = time.time()
             f = fitness_spacers(n, nh, p, params, sim_params)
             sparse.save_npz(foldername+f"/sp_frame_f{t}", f.tocoo())
@@ -146,7 +158,7 @@ def main(params, sim_params, normalize_f = True) -> int :
             
             if (np.sum(n) <= 0) or (np.sum(n) >= (2)*np.sum(nh)):
                 with open(foldername+'/runtime_stats.txt','a') as file:
-                    outstring = f"DEAD at: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| Shift Amount: {np.linalg.norm(shift_vector)} \n"
+                    outstring = f"DEAD at: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)} \n"
                     file.write(outstring)
                 return 1
 
@@ -157,16 +169,14 @@ def main(params, sim_params, normalize_f = True) -> int :
             nh_prev = nh
 
             params, sim_params, num_to_add, num_to_remove = HGT_logistic_event(t, n, params, sim_params)
-            nh_gain = immunity_gain_from_kernel(nh, n, kernel_immunity, params, sim_params, num_to_add) #update nh
-            nh = immunity_loss_uniform(nh_gain, n, params, sim_params, num_to_remove)
+            nh_gain = immunity_mean_field_add(nh, n, params, sim_params, num_to_add, int_prob = int_prob) #update nh
+            nh = immunity_mean_field_remove(nh_gain, n, params, sim_params, num_to_remove)
             
-            diff_of_acquisition = num_to_add-num_to_remove
-            shift_vector = compute_shift(nh, nh_prev, "max")
             ed = time.time()
 
             with open(foldername+'/runtime_stats.txt','a') as file:
                 M = params["M"]
-                outstring = f"t: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| M: {M:.4f}| Net_Acq_Diff: {diff_of_acquisition:.4f}| Shift Amount: {np.linalg.norm(shift_vector):.4f} \n"
+                outstring = f"t: {t}| N: {np.sum(n)}| Coverage: {time_conv(st2-st1)}| Growth: {time_conv(st3-st2)}| Mutation: {time_conv(st4-st3)}| Immunity: {time_conv(ed-st4)}| M: {M:.4f} \n"
                 file.write(outstring)
 
             t += sim_params["dt"]

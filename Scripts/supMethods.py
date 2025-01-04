@@ -7,6 +7,58 @@ import time
 from functools import wraps
 import matplotlib.colors as mcolors
 from joblib import Parallel, delayed
+import numpy as np
+from scipy.optimize import curve_fit
+
+def gaussian(x, a, x0, sigma):
+    """Gaussian function."""
+    normalization = 1/(sigma*np.sqrt(2*np.pi))
+    return a *normalization*np.exp(-((x - x0) ** 2) / (2 * sigma ** 2))
+
+def fit_gaussian(xdomain, data):
+
+    x = xdomain
+    a_guess = np.max(data)
+    x0_guess = np.sum(x * data) / np.sum(data)
+    sigma_guess = np.sqrt(np.sum(data * (x - x0_guess) ** 2) / np.sum(data))
+    
+    popt, _ = curve_fit(gaussian, x, data, p0=[a_guess, x0_guess, sigma_guess])
+    return popt
+
+def crop_matrix_and_ranges(matrix, mean, window_size, x_range):
+    # Determine the half-window size
+    half_window = window_size // 2
+    
+    # Calculate the bounds of the cropping window
+    row_start = max(mean[0] - half_window, 0)
+    row_end = min(mean[0] + half_window + 1, matrix.shape[0])
+    col_start = max(mean[1] - half_window, 0)
+    col_end = min(mean[1] + half_window + 1, matrix.shape[1])
+    
+    # Crop the sparse matrix within the bounds and convert to a dense array
+    cropped_matrix = matrix[row_start:row_end, col_start:col_end].toarray()
+    
+    # Crop x_range and y_range based on the same bounds
+    x_range_cropped = x_range[row_start:row_end]
+    y_range_cropped = x_range[col_start:col_end]  # y labels are the same as x labels
+    
+    # Pad the matrix with zeros if the cropped section is smaller than window_size
+    row_pad = max(0, window_size - (row_end - row_start))
+    col_pad = max(0, window_size - (col_end - col_start))
+    
+    if row_pad > 0 or col_pad > 0:
+        padded_matrix = np.zeros((window_size, window_size))
+        padded_matrix[:cropped_matrix.shape[0], :cropped_matrix.shape[1]] = cropped_matrix
+        
+        # Update the cropped matrix
+        cropped_matrix = padded_matrix
+        
+        # Adjust x_range_cropped and y_range_cropped to match the padded window_size with NaNs
+        x_range_cropped = np.pad(x_range_cropped, (0, row_pad), constant_values=np.nan)
+        y_range_cropped = np.pad(y_range_cropped, (0, col_pad), constant_values=np.nan)
+    
+    return cropped_matrix, x_range_cropped, y_range_cropped
+
 
 def sum_parallel(results_list, num_threads):
     def sum_pair(array1, array2):
@@ -41,18 +93,6 @@ def sum_parallel(results_list, num_threads):
 
         partial_sums.extend(remainder_to_sum)   
         results_list = partial_sums
-    
-    # if num_threads >= 8:
-    #     partial_sums = results_list[:8]
-    #     remainder_to_sum = results_list[8:]
-
-    #     # Sum the second level with 8 threads
-    #     partial_sums = Parallel(n_jobs=4)(
-    #         delayed(sum_pair)(partial_sums[i], partial_sums[i + 1]) for i in range(0, 8, 2)
-    #     )
-
-    #     partial_sums.extend(remainder_to_sum)   
-    #     results_list = partial_sums
 
     final_sum = np.sum(results_list, axis=0)
     return final_sum
@@ -91,32 +131,54 @@ def read_json(foldername, results_flag = False):
 
     return params, sim_params
 
-def load_last_output(foldername):
-    files_in_directory = [f for f in os.listdir(foldername) if f.startswith('sp_frame_nh') and f.endswith('.npz')]
+def load_last_output(foldername, dim = 2):
+    if dim == 2:
+        prefix = "sp_frame_nh"
+        sufix = ".npz"
+    else:
+        prefix = "frame_nh"
+        sufix = ".npy"
+
+    files_in_directory = [f for f in os.listdir(foldername) if f.startswith(prefix) and f.endswith(sufix)]
 
     if not files_in_directory:
-        raise FileNotFoundError("No sp_frame_n*.npz files found in the current directory.")
+        raise FileNotFoundError("No " + prefix + "*" + sufix + " files found in the current directory.")
 
     highest_numeric_value = float('-inf')
 
     for filename in files_in_directory:
-        numeric_value = int(filename.split('sp_frame_nh')[1].split('.npz')[0]) #USE Nh instead of N cuz N will give you h0
+        numeric_value = int(filename.split(prefix)[1].split(sufix)[0]) #USE Nh instead of N cuz N will give you h0
         if numeric_value > highest_numeric_value:
             highest_numeric_value = numeric_value
     
-    n = scipy.sparse.load_npz(foldername + f"/sp_frame_n{highest_numeric_value}.npz").todok()
-    nh = scipy.sparse.load_npz(foldername + f"/sp_frame_nh{highest_numeric_value}.npz").todok()
+    if dim == 2:
+        n = scipy.sparse.load_npz(foldername + f"/sp_frame_n{highest_numeric_value}.npz").todok()
+        nh = scipy.sparse.load_npz(foldername + f"/sp_frame_nh{highest_numeric_value}.npz").todok()
+    else:
+        n = np.load(foldername + f"/frame_n{highest_numeric_value}.npy")
+        nh = np.load(foldername + f"/frame_nh{highest_numeric_value}.npy")
     return highest_numeric_value, n, nh
 
-def load_outputs(foldername, t, add_fitness = False):
-    try:
-        n = scipy.sparse.load_npz(foldername + f"/sp_frame_n{t}.npz").todok()
-        nh = scipy.sparse.load_npz(foldername + f"/sp_frame_nh{t}.npz").todok()
-        if add_fitness:
-            f = scipy.sparse.load_npz(foldername + f"/sp_frame_f{t}.npz").todok()
-    except FileNotFoundError:
-        raise FileNotFoundError(f"The output was not found at {t}")
+def load_outputs(foldername, t, add_fitness = False, dim = 2):
+    if dim == 2:
+        try:
+            n = scipy.sparse.load_npz(foldername + f"/sp_frame_n{t}.npz").todok()
+            nh = scipy.sparse.load_npz(foldername + f"/sp_frame_nh{t}.npz").todok()
+            if add_fitness:
+                f = scipy.sparse.load_npz(foldername + f"/sp_frame_f{t}.npz").todok()
+        except FileNotFoundError:
+            raise FileNotFoundError(f"The output 2D was not found at {t}")
     
+    else:
+        try:
+            n = np.load(foldername + f"/frame_n{t}.npy")
+            nh = np.load(foldername + f"/frame_nh{t}.npy")
+
+            if add_fitness:
+                f = np.load(foldername + f"/frame_f{t}.npy")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"The output 1D was not found at {t}")
+        
     if add_fitness:
         return n, nh, f
 
@@ -216,11 +278,17 @@ def calc_diff_const(params, sim_params):
     dx = sim_params["dx"]
     shape = params["gamma_shape"]
     mu = params["mu"]
+    ndim = sim_params["ndim"]
 
     mean = 2*dx
     scale = mean/shape
     gamma_var = shape*(scale**2)
-    cos_uni_var = 1/2
+    
+    if ndim == 2:
+        cos_uni_var = 1/2
+    elif ndim == 1:
+        cos_uni_var = 1
+
     prod_var = (mean**2 + gamma_var)*(cos_uni_var)
 
     diff_const = mu*prod_var/2
@@ -233,7 +301,6 @@ def get_xdomain(params, sim_params):
     return x_range
 
 def compute_shift(nh, nh_prev, type = "max"):
-
     if type == "max":
         x_old, y_old= find_max_value_location(nh_prev)
         x_new, y_new= find_max_value_location(nh)

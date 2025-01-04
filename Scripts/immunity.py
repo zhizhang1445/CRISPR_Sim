@@ -7,218 +7,166 @@ from joblib import Parallel, delayed, parallel_backend
 from numpy.random import default_rng
 from concurrent.futures import as_completed
 from supMethods import timeit, find_max_value_location
+from scipy.sparse import issparse
 
-
-# @timeit
-def immunity_update(nh, n, params, sim_params):
-    Nh = params["Nh"]
-    M = params["M"]
-    num_threads = sim_params["num_threads"]
-    nh = nh + n
-    total_number = np.sum(nh)
-    num_to_remove = int(total_number - Nh*M)
-
-    nonzero_indices = np.transpose(nh.nonzero())
-    nonzero_indices_subset = np.array_split(nonzero_indices, num_threads, axis=0)
-    nonzero_values = nh[nonzero_indices[:, 0], nonzero_indices[:, 1]].toarray().squeeze()
-    nonzero_values_subset = np.array_split(nonzero_values, num_threads, axis=0)
-
-    def process_value(values, indexes):
-        index_nonzero_w_repeats = []
-        for value, index in zip(values, indexes):
-            index_nonzero_w_repeats.extend([index for _ in range(int(value))])
-        return index_nonzero_w_repeats
-
-    set_index_w_repeats = Parallel(n_jobs=num_threads)(delayed(process_value)(values, indexes)
-                                for values, indexes in zip(nonzero_values_subset, nonzero_indices_subset))
-
-    set_num_to_remove = [int(num_to_remove*(len(set)/total_number)) 
-                         for set in set_index_w_repeats]
-    set_num_to_remove_ex = int(num_to_remove - np.sum(set_num_to_remove))
-
-    if set_num_to_remove_ex < 0:
-        raise ValueError("Fuck why is set_num_to_remove_ex negative")
-    else:
-        thread_num = np.random.choice(num_threads, set_num_to_remove_ex)
-        for i in thread_num:
-            set_num_to_remove[i] += 1
-
-    def remove_points(sub_index_w_repeats, sub_num_to_remove):
-        array = scipy.sparse.dok_matrix(nh.shape, dtype=int)
-        if sub_num_to_remove == 0:
-            return array
-        
-        sampled_flat_ind = np.random.choice(len(sub_index_w_repeats), 
-                                            sub_num_to_remove,replace = False)
-        for i in sampled_flat_ind:
-            x, y = sub_index_w_repeats[i]
-            array[x, y] -= 1
-        return array
-
-    results = Parallel(n_jobs=num_threads)(
-        delayed(remove_points)(sub_index_w_repeats, sub_num_to_remove) 
-            for sub_index_w_repeats, sub_num_to_remove 
-            in zip(set_index_w_repeats, set_num_to_remove))
-    nh = nh + np.sum(results, axis=0)
-
-    if np.abs(np.sum(nh) - Nh*M) >= 1:
-        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
-    
-    min_val = np.min(nh.tocoo()) if (scipy.sparse.issparse(nh)) else np.min(nh)
-
-    if min_val < 0:
-        raise ValueError("bacteria population is negative")
-
-    return nh
-
-# @timeit
-def immunity_mean_field_1D(nh, n, params, sim_params):
+def immunity_mean_field_add(nh, n, params, sim_params, num_to_add = None, int_prob = None):
     Nh = params["Nh"]
     M = params["M"]
     A = params["A"]
-    nh_integrated = nh + A*n
+    ndim = sim_params["ndim"]
+
+    if int_prob is None:
+        prob = (n/np.sum(n))
+    else:
+        prob = np.abs(int_prob*n)/np.sum(np.abs(int_prob*n))
+
+    if num_to_add is None:
+        num_to_add = np.rint(A*np.sum(n)).astype(int)
+
+    nh_new = nh + num_to_add*prob
+
+    if ndim == 1:
+        # print(ndim)
+        nh_new = np.rint(nh_new).astype(int)
+    else:
+        x_ind, y_ind = nh_new.nonzero()
+        nonzero_items = nh_new[x_ind, y_ind]
+        if issparse(nonzero_items):
+            nonzero_items = nonzero_items.toarray().squeeze()
+        else:
+            nonzero_items = np.array(nonzero_items).squeeze()
+        nh_new[x_ind, y_ind] = np.rint(nonzero_items).astype(int)
+
+
+    new_tt_number = np.sum(nh_new)
+    error = int(int(np.sum(nh)) + num_to_add - int(new_tt_number))
+
+    if ndim == 1:
+        x_inds = np.nonzero(nh_new)[0]
+
+        if error > 0:
+            for _ in range(error):
+                x_ind = np.random.choice(x_inds)
+                nh_new[x_ind] += 1
+
+        if error < 0:
+            while(error < 0):
+                # print(x_inds)
+                x_ind = np.random.choice(x_inds)
+                if nh_new[x_ind] > 0:
+                    nh_new[x_ind] -= 1
+                    error += 1
+        min_val = np.min(nh_new)
+
+    else:
+        nh_new = scipy.sparse.dok_matrix(nh_new)
+        # print(error)
+        x_ind, y_ind = nh_new.nonzero()
+        support_size = len(x_ind)
+
+        if error > 0:
+            for _ in range(error):
+                choice = np.random.choice(support_size)
+                nh_new[x_ind[choice], y_ind[choice]] += 1
+
+        if error < 0:
+            while(error < 0):
+                # print(x_inds)
+                choice = np.random.choice(support_size)
+
+                if nh_new[x_ind[choice], y_ind[choice]] > 0:
+                    nh_new[x_ind[choice], y_ind[choice]] -= 1
+                    error += 1
+
+        min_val = np.min(nh_new.tocoo()) if (scipy.sparse.issparse(nh_new)) else np.min(nh_new)
+
+    if np.sum(nh_new) != np.ceil(np.sum(nh) + num_to_add):
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new))
+    
+    if min_val < 0:
+        print(params)
+        raise ValueError("bacteria population is negative")
+
+    return nh_new
+
+def immunity_mean_field_remove(nh_integrated, n, params, sim_params, num_to_remove = None):
+    Nh = params["Nh"]
+    M = params["M"]
+    A = params["A"]
+    ndim = sim_params["ndim"]
 
     prob = (nh_integrated/np.sum(nh_integrated))
 
-    nh_new = nh_integrated - A*np.sum(n)*prob
-    nh_new = np.rint(nh_new).astype(int)
+    if num_to_remove is None:
+        num_to_remove = int(np.sum(nh_integrated)) - int(Nh*M)
+
+    nh_new = nh_integrated - num_to_remove*prob
+    # nh_new = np.rint(nh_new).astype(int)
+
+    if ndim == 1:
+        # print(ndim)
+        nh_new = np.rint(nh_new).astype(int)
+    else:
+        x_ind, y_ind = nh_new.nonzero()
+        nonzero_items = nh_new[x_ind, y_ind]
+        if issparse(nonzero_items):
+            nonzero_items = nonzero_items.toarray().squeeze()
+        else:
+            nonzero_items = np.array(nonzero_items).squeeze()
+        nh_new[x_ind, y_ind] = np.rint(nonzero_items).astype(int)
 
     new_tt_number = np.sum(nh_new)
-    error = int(Nh*M) - int(new_tt_number)
+    error = int(int(np.sum(nh_integrated)) - num_to_remove - int(new_tt_number))
     # print(error)
     
-    x_inds = np.nonzero(nh_new)[0]
+    if ndim == 1:
+        x_inds = np.nonzero(nh_new)[0]
 
-    if error > 0:
-        for _ in range(error):
-            x_ind = np.random.choice(x_inds)
-            nh_new[x_ind] += 1
+        if error > 0:
+            for _ in range(error):
+                x_ind = np.random.choice(x_inds)
+                nh_new[x_ind] += 1
 
-    if error < 0:
-        while(error < 0):
-            # print(x_inds)
-            x_ind = np.random.choice(x_inds)
-            if nh_new[x_ind] > 0:
-                nh_new[x_ind] -= 1
-                error += 1
+        if error < 0:
+            while(error < 0):
+                # print(x_inds)
+                x_ind = np.random.choice(x_inds)
+                if nh_new[x_ind] > 0:
+                    nh_new[x_ind] -= 1
+                    error += 1
+        min_val = np.min(nh_new)
 
-    if np.sum(nh_new) != np.ceil(Nh*M):
-        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new))
+    else:
+        nh_new = scipy.sparse.dok_matrix(nh_new)
+        # print(error)
+        x_ind, y_ind = nh_new.nonzero()
+        support_size = len(x_ind)
+
+        if error > 0:
+            for _ in range(error):
+                choice = np.random.choice(support_size)
+                nh_new[x_ind[choice], y_ind[choice]] += 1
+
+        if error < 0:
+            while(error < 0):
+                # print(x_inds)
+                choice = np.random.choice(support_size)
+
+                if nh_new[x_ind[choice], y_ind[choice]] > 0:
+                    nh_new[x_ind[choice], y_ind[choice]] -= 1
+                    error += 1
+
+        min_val = np.min(nh_new.tocoo()) if (scipy.sparse.issparse(nh_new)) else np.min(nh_new)
+
+    if np.sum(nh_new) != np.ceil(np.sum(nh_integrated) - num_to_remove):
+        ceiling = np.ceil(np.sum(nh_integrated) - num_to_remove) - np.sum(nh_new)
+        int_error = int(int(np.sum(nh_integrated)) - num_to_remove - int(nh_new))
+        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new), "ceiling error:    ", ceiling, "int error:  ", int_error)
     
-    if np.min(nh_new) < 0:
-        raise ValueError("bacteria population is negative")
-
-    return nh_new
-
-
-def immunity_mean_field(nh, n, params, sim_params):
-    Nh = params["Nh"]
-    M = params["M"]
-    nh = nh + n
-    total_number = np.sum(nh)
-    num_to_remove = int(total_number - Nh*M)
-    ratio = 1-(num_to_remove/total_number)
-
-    nh_new = scipy.sparse.dok_matrix(nh.shape)
-    for (row, col), value in nh.items():
-        nh_new[row, col] = int(np.rint(value*ratio))
-
-    new_tt_number = np.sum(nh_new)
-    error = int(Nh - new_tt_number)
-    # print(error)
-    
-    x_max, y_max = find_max_value_location(nh)
-    nh_new[x_max, y_max] += error
-
-
-    if np.sum(nh_new) != np.ceil(Nh*M):
-        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh))
-    
-    min_val = np.min(nh_new.tocoo()) if (scipy.sparse.issparse(nh_new)) else np.min(nh_new)
-
     if min_val < 0:
         raise ValueError("bacteria population is negative")
-
-    return nh
-
-def immunity_mean_field_1D_remove(nh_integrated, n, params, sim_params):
-    Nh = params["Nh"]
-    M = params["M"]
-    total_number = np.sum(nh_integrated)
-    num_to_remove = int(total_number - Nh*M)
-    ratio = 1-(num_to_remove/total_number)
-
-    nh_new = np.zeros_like(n)
-    for i, value in enumerate(nh_integrated):
-        nh_new[i] = int(np.rint(value*ratio))
-
-    new_tt_number = np.sum(nh_new)
-    error = int(Nh*M) - int(new_tt_number)
-    # print(error)
-    
-    x_inds = np.nonzero(nh_new)[0]
-
-    if error > 0:
-        for _ in range(error):
-            x_ind = np.random.choice(x_inds)
-            nh_new[x_ind] += 1
-
-    if error < 0:
-        while(error < 0):
-            print(x_inds)
-            x_ind = np.random.choice(x_inds)
-            if nh_new[x_ind] > 0:
-                nh_new[x_ind] -= 1
-                error += 1
-
-
-    if np.sum(nh_new) != np.ceil(Nh*M):
-        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new))
-    
-    if np.min(nh_new) < 0:
-        raise ValueError("bacteria population is negative")
-
     return nh_new
 
-def immunity_mean_field_1D_add(nh, n, params, sim_params):
-    Nh = params["Nh"]
-    M = params["M"]
-    nh_integrated = nh + n
-    total_number = np.sum(nh_integrated)
-    num_to_remove = int(total_number - Nh*M)
-    ratio = 1-(num_to_remove/total_number)
-
-    nh_new = np.zeros_like(nh)
-    for i, value in enumerate(nh):
-        nh_new[i] = int(np.rint(value*ratio))
-
-    new_tt_number = np.sum(nh_new)
-    error = int(Nh*M) - int(new_tt_number)
-    # print(error)
-    
-    x_inds = np.nonzero(nh_new)[0]
-
-    if error > 0:
-        for _ in range(error):
-            x_ind = np.random.choice(x_inds)
-            nh_new[x_ind] += 1
-
-    if error < 0:
-        while(error < 0):
-            print(x_inds)
-            x_ind = np.random.choice(x_inds)
-            if nh_new[x_ind] > 0:
-                nh_new[x_ind] -= 1
-                error += 1
-
-
-    if np.sum(nh_new) != np.ceil(Nh*M):
-        raise ValueError("bacteria died/reproduced at immunity gain, Nh = ", np.sum(nh_new))
-    
-    if np.min(nh_new) < 0:
-        raise ValueError("bacteria population is negative")
-
-    return nh_new
 # @timeit
 def immunity_update_SerialChoice(nh, n, params, sim_params):
     Nh = params["Nh"]

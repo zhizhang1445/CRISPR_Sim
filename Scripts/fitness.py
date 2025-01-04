@@ -45,15 +45,17 @@ def fitness_1D(p_coverage, params, sim_params):
     fit = np.log(R0*p_inf)
     return fit
 
-def norm_fitness(f, n, params, sim_params):
+def norm_fitness(f, n, params, sim_params, return_avg = False):
     ndim = sim_params["ndim"]
     if ndim == 1 and isinstance(f, np.ndarray):
         f_avg = np.sum(f*n)/np.sum(n)
         new_f = f-f_avg
+        if return_avg:
+            return new_f, f_avg
 
         return new_f
     elif ndim == 2 and issparse(f):
-        return norm_fitness_2D(f, n, params, sim_params)
+        return norm_fitness_2D(f, n, params, sim_params, return_avg=return_avg)
     else:
         raise TypeError(f"Something went wrong with Norm_F| n_dim: {ndim} but type is {type(n)}")
 

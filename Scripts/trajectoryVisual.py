@@ -6,6 +6,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import imageio
 import os
+
+
 def plot_sparse(n, title = None, margins = (-0.45, -0.45)):
     plt.figure()
     plt.margins(margins[0], margins[1])

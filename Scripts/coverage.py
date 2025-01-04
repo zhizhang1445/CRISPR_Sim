@@ -1,5 +1,6 @@
 import numpy as np
 import numpy.ma as ma
+from pysam import coverage
 import scipy
 # from scipy.ndimage import convolve
 from scipy.signal import convolve
@@ -43,10 +44,11 @@ def square_split(array, split_size): #Find smallest matrix possible and make it 
     return subarrays, start_indices
 
 def split_coverage(nh, n, kernel, params, sim_params): #TODO This is already parallel, SPARSE THIS
-    num_cores = sim_params["num_threads"]
-    input_data = nh/params["Nh"]
     if scipy.sparse.issparse(nh):
         nh = nh.toarray()
+        n = n.toarray()
+    num_cores = sim_params["num_threads"]
+    input_data = nh/params["Nh"]
 
     def masked_array(subarray, loc_i): 
         subarray_shape = subarray.shape
@@ -175,62 +177,50 @@ def elementwise_coverage_vectorized(nh, n, kernel_dict:dict, params, sim_params,
     res[x_ind_n, y_ind_n] = result_values
     return res
 
-def double_elementwise_coverage(nh, n, coverage_kernel, acquisition_kernel, params, sim_params, print_progress = False):
-    conv_size = sim_params["conv_size"]
+def double_vectorized_coverage(nh, n, coverage_kernel_dict, acquisition_kernel_dict, params, sim_params, print_progress = False):
+    def lookup_value_coverage(val):
+        val = float(val)
+        return coverage_kernel_dict.get(val, 0.)
+    def lookup_value_acquisition(val):
+        val = float(val)
+        return acquisition_kernel_dict.get(val, 0.)
+
+    def double_convolve_subset(A, nonzero_values):
+        coverage_res = np.zeros(len_ind_n)
+        acquisition_res = np.zeros(len_ind_n)
+
+        for i in range(len_ind_n): #go through indexes of n
+            dist = cdist(A, B[i, :].reshape(1,2))
+            coverage_res[i] = np.dot(np.vectorize(lookup_value_coverage)(dist).squeeze(), nonzero_values)
+            acquisition_res[i] = np.dot(np.vectorize(lookup_value_acquisition)(dist).squeeze(), nonzero_values)
+        return coverage_res, acquisition_res
+
     Nh = params["Nh"]
     M = params["M"]
-    num_threads = sim_params["num_threads"]
 
     x_ind_nh, y_ind_nh = nh.nonzero()
     x_ind_n, y_ind_n = n.nonzero()
 
-    x_nh_sets = np.array_split(x_ind_nh, num_threads)
-    y_nh_sets = np.array_split(y_ind_nh, num_threads)
+    A = np.array([x_ind_nh, y_ind_nh]).transpose()
+    B = np.array([x_ind_n, y_ind_n]).transpose()
+    len_ind_n = len(x_ind_n)
 
-    input_h = np.divide(nh, Nh)
-    tt_num_of_ind = len(x_ind_nh)
+    input_h = np.divide(nh, Nh*M)
+    if scipy.sparse.issparse(input_h):
+        input_h = input_h[x_ind_nh, y_ind_nh].toarray()
+        nonzero_values = np.array(input_h).squeeze()
+    else:
+        input_h = input_h[x_ind_nh, y_ind_nh]
+        nonzero_values = np.array(input_h).squeeze()
 
-    def convolve_subset(x_ind_nh, y_ind_nh):
-        res_coverage = scipy.sparse.dok_matrix(nh.shape, dtype=float)
-        res_acquisition = scipy.sparse.dok_matrix(nh.shape, dtype=float)
+    coverage_res, acquisition_res = double_convolve_subset(A, nonzero_values)
+    out_coverage = scipy.sparse.dok_matrix(n.shape, dtype=float)
+    out_coverage[x_ind_n, y_ind_n] = coverage_res
 
-        if print_progress:
-            ind_nh_left = tt_num_of_ind
+    out_aquisition = scipy.sparse.dok_matrix(n.shape, dtype=float)
+    out_aquisition[x_ind_n, y_ind_n] = acquisition_res
 
-        for x_nh, y_nh in zip(x_ind_nh, y_ind_nh):
-            value = input_h[x_nh, y_nh]
-
-            for x_n, y_n in zip(x_ind_n, y_ind_n):
-
-                x_kernel = np.abs(x_nh-x_n)
-                y_kernel = np.abs(y_nh-y_n)
-
-                if np.any((x_kernel >= conv_size, y_kernel >= conv_size)):
-                    continue
-                
-                try:
-                    interaction_coverage = coverage_kernel[x_kernel, y_kernel]
-                    interaction_acquisition = acquisition_kernel[x_kernel, y_kernel]
-                except(IndexError):
-                    print("wtf? Convolution out of Bounds??", x_kernel, y_kernel)
-                    break
-
-                res_coverage[x_n, y_n] += value*interaction_coverage
-                res_acquisition[x_n, y_n] += value*interaction_acquisition
-
-            if print_progress:
-                print(f"Number of nh index left: {ind_nh_left}")
-                ind_nh_left -= 1
-        return res_coverage, res_acquisition
-
-    results_cov, results_acq = Parallel(n_jobs=num_threads)(delayed(convolve_subset)
-        (x_ind_nh, y_ind_nh) 
-            for x_ind_nh, y_ind_nh
-                in zip(x_nh_sets, y_nh_sets))
-    
-    out_coverage = np.sum(results_cov, axis=0)/M
-    out_acquisition = np.sum(results_acq, axis=0)/np.sum(results_acq)
-    return out_coverage, out_acquisition
+    return out_coverage, out_aquisition
 
 def coverage_1D(nh, kernel1D, params, sim_params):
     M = params["M"]

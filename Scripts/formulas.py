@@ -2,6 +2,8 @@ import numpy as np
 import scipy
 import matplotlib.pyplot as plt
 from copy import deepcopy
+
+from sympy import n_order
 from supMethods import minmax_norm, calc_diff_const
 
 def alpha(d, params): #This doesn't need to be sparsed
@@ -52,22 +54,33 @@ def p_infection(p_dense, params, sim_params):
     M = params["M"]
     Np = params["Np"]
     dc = params["dc"]
-    n_order_spacer = params["n_spacer"]
+    n_order_spacer = int(params["n_spacer"])
+
     if n_order_spacer > M:
-        n_order_spacer = M
-    
+        n_order_spacer = np.ceil(M).astype(int)
+
     p_infection = 0
     for n in range(0, n_order_spacer+1):
+        if n == 0:
+            p_n_spacer = np.power((1-p_dense), M)
+        if n == 1:
+            p_n_spacer = M*p_dense*(np.power((1-p_dense), (M-1)))
+
         p_n_spacer = binomial_pdf(M, n, p_dense)
         for d in range(0, dc+1):
             p_infection += binomial_pdf(Np, d, n/M)*p_n_spacer
     return p_infection
 
-def gaussian1D(x, t, params, sim_params, mu = 0, direction = "parallel", prob = False):
+def gaussian1D(x, t, params, sim_params, mu = 0, direction = "parallel", prob = False, delay = False):
     if direction == "parallel":
         sigma = params["sigma"]
-    else:
+    elif direction == "transverse":
         sigma = np.sqrt(1.66)*params["sigma"]
+    else:
+        sigma = params["sigma"]
+
+    if delay: 
+        mu = params["delay"]
 
     v0 = params["v0"]
     N = params["N"]
@@ -80,26 +93,32 @@ def gaussian1D(x, t, params, sim_params, mu = 0, direction = "parallel", prob = 
     else:
         return res
 
-def trail_exp(x, t, params, sim_params, prob = False):
+def trail_exp(x, t, params, sim_params, mu = 0, prob = False, delay = True):
     A = params["A"]
     tau = params["tau"]
     N = params["N"]
     v = params["v0"]
     Nh = params["Nh"]
     M = params["M"]
-    B = (v*t - x)/(v*tau)
+    if delay:
+        mu = -1*params["delay"]
+
+    B = (v*t + mu - x)/(v*tau)
 
     exp1 = np.exp(-1*B)
-    heaviside = np.heaviside(v*t - x, 1)
+    heaviside = np.heaviside(v*t + mu - x, 1)
     res = A*exp1*heaviside*(N/v)
     if prob:
         return res/(np.sum(res))
     else:
         return res
 
-def semi_exact_nh(x, t, params, sim_params):
-    def n(x, t):
-        return gaussian1D(x, t, params, sim_params, 0)
+def semi_exact_nh(x, t, params, sim_params, mu = 0, delay = True):
+    if delay:
+        mu = -1*params["delay"]
+
+    def n_int(x, t):
+        return gaussian1D(x, t, params, sim_params, delay = False)
     
     def memory_ker(x, t):
         tau = params["tau"]
@@ -113,7 +132,7 @@ def semi_exact_nh(x, t, params, sim_params):
     res = np.zeros_like(x, dtype=float)
     
     for t_prime in t_prime_range:
-        res += A*n(x, t_prime)*memory_ker(x, t-t_prime)*dt_prime
+        res += A*n_int(x - mu, t_prime)*memory_ker(x - mu, t-t_prime)*dt_prime
     return res
 
 def plot_wave_profiles(params, sim_params, ax = None):
@@ -121,11 +140,11 @@ def plot_wave_profiles(params, sim_params, ax = None):
         fig, ax = plt.subplots()
 
     sigma_n = params["sigma"]
-
-    x = np.arange(-6*sigma_n, 6*sigma_n, 0.1)
+    num_sigma = 16
+    x = np.arange(-num_sigma*sigma_n, num_sigma*sigma_n, 0.1)
     ax.plot(x, gaussian1D(x, 1, params, sim_params), label = "Phage Population")
-    ax.plot(x, trail_exp(x, 0, params, sim_params), label = "Projectile Aproximation")
-    ax.plot(x, semi_exact_nh(x, 0, params, sim_params), label= "Exact Solution")
+    ax.plot(x, trail_exp(x, 0, params, sim_params, delay = True), label = "Projectile Aproximation")
+    ax.plot(x, semi_exact_nh(x, 0, params, sim_params, delay = True), label= "Exact Solution")
 
     ymax = max(trail_exp(x, 0, params, sim_params))
     ax.axvline([params["uc"]], 0,ymax, linestyle="--", color ='k', label = "Fittest Individual")
@@ -134,11 +153,15 @@ def plot_wave_profiles(params, sim_params, ax = None):
     ax.set_ylabel("Occupancy")
     ax.legend()
 
-def theoretical_c(x,t, params, sim_params, direction = "Front", translation = 0):
+def theoretical_c(x,t, params, sim_params, direction = "Front", mu = 0, delay = True):
+    if delay:
+        mu = -1*params["delay"]
+    
     tau = params["tau"]
     v = params["v0"]
     r = params["r"]
-    x = x-translation-v*t
+
+    x = x-mu-v*t
     
     A = 1/(1+(v*tau/r))
     B = 1/(1-(v*tau/r))
@@ -161,8 +184,8 @@ def theoretical_c(x,t, params, sim_params, direction = "Front", translation = 0)
 def semi_true_c(x, t, params, sim_params, how_true = "trail"):
     def nh(x, t):
         if how_true == "trail":
-            return trail_exp(x, t, params, sim_params)
-        return semi_exact_nh(x, t, params, sim_params)
+            return trail_exp(x, t, params, sim_params, delay = True)
+        return semi_exact_nh(x, t, params, sim_params, delay = True)
 
     def coverage_ker(x,t):
         r = params["r"]
@@ -171,13 +194,13 @@ def semi_true_c(x, t, params, sim_params, how_true = "trail"):
     v = params["v0"]
     tau = params["tau"]
     x_prime_low = v*t - 10*params["tau"]*v
-    dx_prime = 0.1
+    dx_prime = 1
     x_prime_range = np.arange(x_prime_low, -1*x_prime_low, dx_prime)
-
+    speed_nh = nh(x_prime_range, t)
     res = np.zeros_like(x)
     
-    for x_prime in x_prime_range:
-        res += (nh(x_prime, t)*coverage_ker(x-x_prime, t)*dx_prime)
+    for x_prime, nh_x_prime in zip(x_prime_range, speed_nh):
+        res += (nh_x_prime*coverage_ker(x-x_prime, t)*dx_prime)
         # print(np.sum(res))
 
     norm = params["M"]*params["Nh"]
@@ -189,14 +212,16 @@ def plot_wave_coverage(params, sim_params, ax = None):
 
     sigma_n = params["sigma"]
 
-    x= np.arange(-20*sigma_n, 6*sigma_n, 0.1)
-    ax.plot(x, gaussian1D(x, 0, params,sim_params)/np.sum(params["N"]))
-    ax.plot(x, trail_exp(x, 0, params,sim_params)/np.sum(params["Nh"]))
+    x = np.arange(-20*sigma_n, 6*sigma_n, 0.1)
+    ax.plot(x, gaussian1D(x, 0, params, sim_params, prob = True))
+    ax.plot(x, trail_exp(x, 0, params, sim_params, prob = True))
 
     ax.plot(x, theoretical_c(x, 0, params, sim_params, direction="Full"), label = "Proj. Approx")
     # ax.plot(x, semi_true_c(x, 0, params, sim_params, how_true="true"), label = "Num. Approx")
-    ax.plot(x, semi_true_c(x, 0, params, sim_params, "trail"), label = "Approx c")
+    ax.plot(x, semi_true_c(x, 0, params, sim_params, "true"), label = "True c")
     ax.axvline([0], 0, np.max(theoretical_c(x, 0, params, sim_params)), linestyle = "--", color = "k", label = "Wave Center")
+    ax.axvline([-1*params["delay"]], 0, np.max(theoretical_c(x, 0, params, sim_params)), linestyle = ":", color = "blue", label = "Coverage Center")
+
     ax.set_title("Traveling Wave Coverage")
     ax.set_xlabel("Antigenic Distance")
     ax.set_ylabel("Coverage Probabiilty")
@@ -229,7 +254,7 @@ def plot_wave_fitness(params, sim_params, ax = None):
 
     sigma_n = params["sigma"]
     x= np.arange(-3*sigma_n, 3*sigma_n, 0.1)
-    ax.plot(x, minmax_norm(gaussian1D(x, 0, params,sim_params)))
+    ax.plot(x, minmax_norm(gaussian1D(x, 0, params,sim_params, delay=False)))
     # plt.plot(x, minmax_norm(trail_exp(x, 0, params,sim_params)))
 
     c = theoretical_c(x, 0, params, sim_params, direction="Full")
@@ -259,7 +284,13 @@ def plot_fitness_memory_dynamics(params, sim_params, ax = None):
     if ax is None:
         fig, ax = plt.subplots()
     x = np.arange(-3*sigma_n, 3*sigma_n, 0.1)
-    M_range = np.arange(1, 30, 1)
+    current_M = params["M"]
+    n_order_spacers = params["n_spacer"]
+
+    if n_order_spacers > 1:
+        M_range = np.arange(1, 2*current_M, 1).astype(int)
+    else:
+        M_range = np.arange(1, 2*current_M, 0.2)
 
     n = gaussian1D(x, 0, params, sim_params)
     ind = np.where(n>=1)

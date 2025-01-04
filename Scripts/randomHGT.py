@@ -5,7 +5,7 @@ import scipy
 def get_time_next_HGT(current_t, params, sim_params):
     rate_event = params["rate_HGT"]
     if rate_event == 0:
-        return np.inf
+        return sim_params["tf"]
     
     scale_param = 1/rate_event
     next_time_reaction = current_t + np.random.exponential(scale_param, 1)[0]
@@ -51,10 +51,10 @@ def HGT_logistic_event(t, n, params, sim_params, toprint = False):
 
         num_to_add = np.sum(n)
         num_to_remove = np.sum(n)
-        return params, sim_params, num_to_add, num_to_remove
+        return params, sim_params, np.rint(num_to_add).astype(int), np.rint(num_to_remove).astype(int)
 
     
-    return params, sim_params, num_to_add, num_to_remove
+    return params, sim_params, np.rint(num_to_add).astype(int), np.rint(num_to_remove).astype(int)
 
 def HGT_discrete_event(t, n, params, sim_params, toprint = False):
     timesteps_to_recovery = np.ceil(1/(params["rate_recovery"]*sim_params["dt"]))
